@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/database"
 import { signToken, setTokenCookie } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
@@ -28,10 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    })
-
+    const existingUser = await db.findUserByEmail(email)
     if (existingUser) {
       return NextResponse.json({ error: "User already exists with this email" }, { status: 400 })
     }
@@ -39,43 +36,37 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create user and tour operator in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Create user
-      const newUser = await tx.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          name,
-          phone,
-          role: "OPERATOR",
-          status: "ACTIVE",
-        },
-      })
+    // Prepare user data
+    const userData = {
+      email,
+      password: hashedPassword,
+      name,
+      phone,
+      role: "OPERATOR" as const,
+      status: "ACTIVE" as const,
+    }
 
-      // Create tour operator profile if company details provided
-      let operator = null
-      if (companyName && description) {
-        operator = await tx.tourOperator.create({
-          data: {
-            userId: newUser.id,
-            companyName,
-            companyDescription: description,
-            companyAddress: address || "",
-            companyCity: city || "",
-            companyCountry: country || "",
-            companyWebsite: website || null,
-            specializations,
-            languages,
-            isVerified: false,
-            rating: 0,
-            totalReviews: 0,
-          },
-        })
+    // Prepare operator data if provided
+    let result
+    if (companyName && description) {
+      const operatorData = {
+        companyName,
+        companyDescription: description,
+        companyAddress: address || "",
+        companyCity: city || "",
+        companyCountry: country || "",
+        companyWebsite: website || null,
+        specializations,
+        languages,
+        isVerified: false,
+        rating: 0,
+        totalReviews: 0,
       }
 
-      return { user: newUser, operator }
-    })
+      result = await db.createUserWithOperator(userData, operatorData)
+    } else {
+      result = { user: await db.createUser(userData), operator: null }
+    }
 
     // Generate JWT token
     const token = await signToken({
@@ -102,9 +93,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Registration error:", error)
 
-    // Handle specific Prisma errors
+    // Handle specific errors
     if (error instanceof Error) {
-      if (error.message.includes("Unique constraint")) {
+      if (error.message.includes("Unique constraint") || error.message.includes("already exists")) {
         return NextResponse.json({ error: "Email already exists" }, { status: 400 })
       }
     }
