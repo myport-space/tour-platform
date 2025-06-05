@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
+import { jwtVerify } from "jose"
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public routes that don't require authentication
@@ -16,26 +16,29 @@ export function middleware(request: NextRequest) {
   }
 
   // For protected routes, check authentication
-  const token = request.cookies.get("token")?.value || request.headers.get("authorization")?.replace("Bearer ", "")
-
+  const token = request.cookies.get("auth_token")?.value || request.headers.get("authorization")?.replace("Bearer ", "")
+      
   if (!token) {
     // Redirect to login if no token
+    console.log("No token");
+    
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 
   try {
-    // Verify the token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    // Verify the token using jose (Edge-compatible)
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET!)
+    const { payload } = await jwtVerify(token, secret)
 
     // Check if user is trying to access admin routes
-    if (pathname.startsWith("/admin") && decoded.role !== "OPERATOR") {
+    if (pathname.startsWith("/admin") && payload.role !== "OPERATOR") {
       return NextResponse.redirect(new URL("/", request.url))
     }
 
     // Add user info to headers for API routes
     const requestHeaders = new Headers(request.headers)
-    requestHeaders.set("x-user-id", decoded.userId)
-    requestHeaders.set("x-user-role", decoded.role)
+    requestHeaders.set("x-user-id", String(payload.userId))
+    requestHeaders.set("x-user-role", String(payload.role))
 
     return NextResponse.next({
       request: {
@@ -44,6 +47,8 @@ export function middleware(request: NextRequest) {
     })
   } catch (error) {
     // Invalid token, redirect to login
+    console.log(error);
+    
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 }

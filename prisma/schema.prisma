@@ -298,7 +298,6 @@ model Transportation {
 model Booking {
   id             String        @id @default(cuid())
   bookingNumber  String        @unique
-  travelers      Int
   totalAmount    Float
   paidAmount     Float         @default(0)
   currency       String        @default("USD")
@@ -368,7 +367,7 @@ model Payment {
 // Review Models
 model Review {
   id               String   @id @default(cuid())
-  rating           Int      @constraint(min: 1, max: 5)
+  rating           Int     
   title            String?
   comment          String   @db.Text
   isVerified       Boolean  @default(false)
@@ -388,17 +387,3 @@ model Review {
 }
 
 // Indexes for better performance
-@@index([User.email])
-@@index([User.role])
-@@index([Tour.status])
-@@index([Tour.categoryId])
-@@index([Tour.operatorId])
-@@index([Tour.isPublished])
-@@index([Tour.isFeatured])
-@@index([Booking.customerId])
-@@index([Booking.tourId])
-@@index([Booking.status])
-@@index([Spot.tourId])
-@@index([Spot.departureDate])
-@@index([Review.tourId])
-@@index([Review.customerId])

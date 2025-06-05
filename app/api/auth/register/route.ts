@@ -1,9 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import jwt from "jsonwebtoken"
+import jwt from "jsonwebtoken" 
+import { PrismaClient } from "@prisma/client"
+import { Turret_Road } from "next/font/google"
 
-// Mock database - in production, use your actual database
-const users: any[] = []
+const prisma = new PrismaClient()
+ 
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,38 +26,54 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Check if user already exists
-    const existingUser = users.find((user) => user.email === email)
+    const existingUser = await prisma.user.findUnique({
+      where:{
+        email
+      }
+    })
+
     if (existingUser) {
       return NextResponse.json({ error: "User already exists with this email" }, { status: 400 })
     }
+
+    console.log({name,email})
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create user
-    const user = {
-      id: `user_${Date.now()}`,
-      name,
-      email,
-      password: hashedPassword,
-      phone,
-      role: "OPERATOR",
-      status: "ACTIVE",
-      createdAt: new Date(),
-      operator: {
-        companyName,
-        description,
-        website,
-        address,
-        city,
-        country,
-        specializations: specializations || [],
-        languages: languages || [],
-      },
-    }
+    const user = await prisma.user.create({
+       data:{
+        name,
+        email,
+        password: hashedPassword,
+        phone,
+        role: "OPERATOR",
+        status: "ACTIVE", 
+       },
+       select:{
+        id:true,
+        email:true,
+        phone:true,
+        role:true,
+        status:true
+       }
+    }) 
 
-    // Store user (in production, save to database)
-    users.push(user)
+    // Create a operator for the user
+    await prisma.tourOperator.create({
+       data:{
+            companyName,
+            companyDescription:description,
+            companyWebsite:website,
+            companyAddress:address,
+            companyCity:city,
+            companyCountry:country,
+            specializations: specializations || [],
+            languages: languages || [],
+            userId:user.id
+       }
+    })
 
     // Generate JWT token
     const token = jwt.sign(
@@ -69,12 +87,12 @@ export async function POST(request: NextRequest) {
     )
 
     // Return user data without password
-    const { password: _, ...userWithoutPassword } = user
+    
 
     return NextResponse.json({
       message: "User created successfully",
       token,
-      user: userWithoutPassword,
+      user: user,
     })
   } catch (error) {
     console.error("Registration error:", error)

@@ -54,6 +54,8 @@ export default function LoginPage() {
         sessionStorage.setItem("auth_token", data.token)
       }
 
+      document.cookie = `auth_token=${data.token}; path=/; secure; samesite=strict`
+
       localStorage.setItem("user_role", data.user.role)
       localStorage.setItem("user_data", JSON.stringify(data.user))
 

@@ -1,34 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
+import { PrismaClient } from "@prisma/client"
 
-// Mock database - in production, use your actual database
-// This should be the same array as in register route
-const users: any[] = []
-
-// Add a default admin user for testing
-if (users.length === 0) {
-  users.push({
-    id: "admin_1",
-    name: "Admin User",
-    email: "admin@example.com",
-    password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/VcSAg/9qm", // 'password' hashed
-    phone: "+1234567890",
-    role: "OPERATOR",
-    status: "ACTIVE",
-    createdAt: new Date(),
-    operator: {
-      companyName: "Demo Tours",
-      description: "Demo tour company",
-      website: "https://demo.com",
-      address: "123 Demo St",
-      city: "Demo City",
-      country: "US",
-      specializations: ["Adventure Tours"],
-      languages: ["English"],
-    },
-  })
-}
+const prisma  = new PrismaClient()
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +11,11 @@ export async function POST(request: NextRequest) {
     const { email, password, rememberMe } = body
 
     // Find user by email
-    const user = users.find((u) => u.email === email)
+    const user = await prisma.user.findUnique({
+      where:{
+        email,
+      }, 
+    })
     if (!user) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
