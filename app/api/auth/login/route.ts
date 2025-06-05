@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { db } from "@/lib/database"
+import { prisma } from "@/lib/prisma"
 import { signToken, setTokenCookie } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
@@ -13,8 +13,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
     }
 
-    // Find user by email
-    const user = await db.findUserByEmail(email)
+    // Find user by email with operator data
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        operator: true,
+      },
+    })
+
     if (!user) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
@@ -31,7 +37,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Update last login time
-    await db.updateUser(user.id, { lastLogin: new Date() })
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    })
 
     // Generate JWT token
     const token = await signToken({
@@ -49,7 +58,7 @@ export async function POST(request: NextRequest) {
       token, // Include token in response for debugging
     })
 
-    // Set token cookie - THIS IS THE CRITICAL PART
+    // Set token cookie
     setTokenCookie(response, token, rememberMe)
 
     return response
