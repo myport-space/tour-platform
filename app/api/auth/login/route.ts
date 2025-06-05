@@ -8,7 +8,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { email, password, rememberMe = false } = body
 
-    // Find user by email
+    // Validate required fields
+    if (!email || !password) {
+      return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
+    }
+
+    // Find user by email with operator data
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
@@ -18,6 +23,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
+    }
+
+    // Check if user is active
+    if (user.status !== "ACTIVE") {
+      return NextResponse.json({ error: "Account is not active" }, { status: 401 })
     }
 
     // Verify password

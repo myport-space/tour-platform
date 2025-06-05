@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { verifyToken, getTokenFromRequest } from "@/lib/auth"
+import { verifyToken } from "@/lib/auth"
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -16,7 +16,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // For protected routes, check authentication
-  const token = getTokenFromRequest(request)
+  const token = request.cookies.get("auth-token")?.value
 
   if (!token) {
     // Redirect to login if no token
@@ -38,8 +38,8 @@ export async function middleware(request: NextRequest) {
 
     // Add user info to headers for API routes
     const requestHeaders = new Headers(request.headers)
-    requestHeaders.set("x-user-id", payload.id as string)
-    requestHeaders.set("x-user-role", payload.role as string)
+    requestHeaders.set("x-user-id", payload.id)
+    requestHeaders.set("x-user-role", payload.role)
 
     return NextResponse.next({
       request: {
@@ -47,6 +47,7 @@ export async function middleware(request: NextRequest) {
       },
     })
   } catch (error) {
+    console.error("Middleware auth error:", error)
     // Invalid token, redirect to login
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }

@@ -17,10 +17,15 @@ export async function POST(request: NextRequest) {
       address,
       city,
       country,
-      specializations,
-      languages,
+      specializations = [],
+      languages = [],
       rememberMe = false,
     } = body
+
+    // Validate required fields
+    if (!name || !email || !password || !phone) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -35,7 +40,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create user and tour operator in a transaction
-    const user = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Create user
       const newUser = await tx.user.create({
         data: {
@@ -48,39 +53,45 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Create tour operator profile
-      await tx.tourOperator.create({
-        data: {
-          userId: newUser.id,
-          companyName,
-          companyDescription: description,
-          companyAddress: address,
-          companyCity: city,
-          companyCountry: country,
-          companyWebsite: website || null,
-          specializations: specializations || [],
-          languages: languages || [],
-        },
-      })
+      // Create tour operator profile if company details provided
+      let operator = null
+      if (companyName && description) {
+        operator = await tx.tourOperator.create({
+          data: {
+            userId: newUser.id,
+            companyName,
+            companyDescription: description,
+            companyAddress: address || "",
+            companyCity: city || "",
+            companyCountry: country || "",
+            companyWebsite: website || null,
+            specializations,
+            languages,
+            isVerified: false,
+            rating: 0,
+            totalReviews: 0,
+          },
+        })
+      }
 
-      return newUser
+      return { user: newUser, operator }
     })
 
     // Generate JWT token
     const token = await signToken({
-      id: user.id,
-      email: user.email,
-      role: user.role,
+      id: result.user.id,
+      email: result.user.email,
+      role: result.user.role,
     })
 
-    // Create response
+    // Create response with user data (excluding password)
+    const { password: _, ...userWithoutPassword } = result.user
+
     const response = NextResponse.json({
       message: "User created successfully",
       user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        ...userWithoutPassword,
+        operator: result.operator,
       },
     })
 
@@ -90,6 +101,14 @@ export async function POST(request: NextRequest) {
     return response
   } catch (error) {
     console.error("Registration error:", error)
+
+    // Handle specific Prisma errors
+    if (error instanceof Error) {
+      if (error.message.includes("Unique constraint")) {
+        return NextResponse.json({ error: "Email already exists" }, { status: 400 })
+      }
+    }
+
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

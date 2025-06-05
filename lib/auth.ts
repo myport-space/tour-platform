@@ -1,58 +1,50 @@
 import { SignJWT, jwtVerify } from "jose"
-import { cookies } from "next/headers"
-import type { NextRequest, NextResponse } from "next/server"
+import type { NextResponse } from "next/server"
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "fallback_secret_for_development_only")
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "your-fallback-secret-key")
 
-export async function signToken(payload: any, expiresIn = "7d") {
-  const token = await new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(expiresIn)
-    .sign(JWT_SECRET)
-
-  return token
+export interface TokenPayload {
+  id: string
+  email: string
+  role: string
 }
 
-export async function verifyToken(token: string) {
+export async function signToken(payload: TokenPayload): Promise<string> {
+  return await new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("7d")
+    .sign(JWT_SECRET)
+}
+
+export async function verifyToken(token: string): Promise<TokenPayload | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET)
-    return payload
+    return payload as TokenPayload
   } catch (error) {
+    console.error("Token verification failed:", error)
     return null
   }
 }
 
 export function setTokenCookie(response: NextResponse, token: string, rememberMe = false) {
-  // Set cookie expiry based on "remember me" option
-  const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60 // 30 days or 1 day in seconds
+  const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60 // 30 days or 7 days
 
-  cookies().set({
-    name: "token",
-    value: token,
+  response.cookies.set("auth-token", token, {
     httpOnly: true,
-    path: "/",
     secure: process.env.NODE_ENV === "production",
-    maxAge,
     sameSite: "lax",
+    maxAge,
+    path: "/",
   })
 }
 
-export function getTokenFromRequest(request: NextRequest) {
-  // Try to get token from cookies first
-  const token = request.cookies.get("token")?.value
-
-  // If no token in cookies, check Authorization header
-  if (!token) {
-    const authHeader = request.headers.get("authorization")
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      return authHeader.substring(7)
-    }
-  }
-
-  return token
-}
-
-export function removeTokenCookie() {
-  cookies().delete("token")
+export function clearTokenCookie(response: NextResponse) {
+  response.cookies.set("auth-token", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  })
 }

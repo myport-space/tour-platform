@@ -4,9 +4,9 @@ import { verifyToken } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
   try {
-    // Get token from Authorization header
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
+    // Get token from cookie or Authorization header
+    const token =
+      request.cookies.get("auth-token")?.value || request.headers.get("authorization")?.replace("Bearer ", "")
 
     if (!token) {
       return NextResponse.json({ error: "No token provided" }, { status: 401 })
@@ -14,13 +14,13 @@ export async function GET(request: NextRequest) {
 
     // Verify JWT token
     const payload = await verifyToken(token)
-    if (!payload || !payload.id) {
+    if (!payload) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    // Find user
+    // Find user in database
     const user = await prisma.user.findUnique({
-      where: { id: payload.id as string },
+      where: { id: payload.id },
       include: {
         operator: true,
       },
@@ -28,6 +28,11 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    // Check if user is still active
+    if (user.status !== "ACTIVE") {
+      return NextResponse.json({ error: "Account is not active" }, { status: 401 })
     }
 
     // Return user data without password
