@@ -30,12 +30,19 @@ export async function verifyToken(token: string): Promise<TokenPayload | null> {
 export function setTokenCookie(response: NextResponse, token: string, rememberMe = false) {
   const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60 // 30 days or 7 days
 
+  // Set the cookie with proper configuration
   response.cookies.set("auth-token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge,
     path: "/",
+  })
+
+  console.log("Cookie set:", {
+    token: token.substring(0, 20) + "...",
+    maxAge,
+    secure: process.env.NODE_ENV === "production",
   })
 }
 

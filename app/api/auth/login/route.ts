@@ -46,9 +46,10 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       message: "Login successful",
       user: userWithoutPassword,
+      token, // Include token in response for debugging
     })
 
-    // Set token cookie
+    // Set token cookie - THIS IS THE CRITICAL PART
     setTokenCookie(response, token, rememberMe)
 
     return response

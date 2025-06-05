@@ -7,7 +7,7 @@ const isBuildTime = process.env.NODE_ENV === "production" && !process.env.DATABA
 export class DatabaseService {
   private static instance: DatabaseService
   private isConnected = false
-  private isMockMode = isBuildTime
+  private isMockMode = false
 
   private constructor() {}
 

@@ -18,7 +18,10 @@ export async function middleware(request: NextRequest) {
   // For protected routes, check authentication
   const token = request.cookies.get("auth-token")?.value
 
+  console.log("Middleware - Token found:", !!token, "Path:", pathname)
+
   if (!token) {
+    console.log("No token found, redirecting to login")
     // Redirect to login if no token
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
@@ -28,11 +31,15 @@ export async function middleware(request: NextRequest) {
     const payload = await verifyToken(token)
 
     if (!payload) {
+      console.log("Invalid token payload")
       throw new Error("Invalid token")
     }
 
+    console.log("Token verified for user:", payload.email, "Role:", payload.role)
+
     // Check if user is trying to access admin routes
     if (pathname.startsWith("/admin") && payload.role !== "OPERATOR") {
+      console.log("User not authorized for admin routes")
       return NextResponse.redirect(new URL("/", request.url))
     }
 
