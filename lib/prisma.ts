@@ -6,23 +6,14 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 // Initialize Prisma client with proper error handling
-let prisma: PrismaClient
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+  })
 
-try {
-  prisma =
-    globalForPrisma.prisma ??
-    new PrismaClient({
-      log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-    })
-
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = prisma
-  }
-} catch (error) {
-  console.error("Failed to initialize Prisma client:", error)
-  // Create a fallback client for build time
-  prisma = {} as PrismaClient
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma
 }
 
-export { prisma }
 export default prisma
