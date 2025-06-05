@@ -4,55 +4,10 @@ import bcrypt from "bcryptjs"
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log("🌱 Starting database seed...")
-
-  // Create categories
-  const categories = await Promise.all([
-    prisma.category.upsert({
-      where: { name: "Adventure Tours" },
-      update: {},
-      create: {
-        name: "Adventure Tours",
-        description: "Thrilling outdoor adventures and extreme sports",
-        color: "#EF4444",
-        icon: "🏔️",
-      },
-    }),
-    prisma.category.upsert({
-      where: { name: "Cultural Tours" },
-      update: {},
-      create: {
-        name: "Cultural Tours",
-        description: "Explore local culture, history, and traditions",
-        color: "#8B5CF6",
-        icon: "🏛️",
-      },
-    }),
-    prisma.category.upsert({
-      where: { name: "Beach & Island" },
-      update: {},
-      create: {
-        name: "Beach & Island",
-        description: "Relaxing beach destinations and tropical islands",
-        color: "#06B6D4",
-        icon: "🏖️",
-      },
-    }),
-    prisma.category.upsert({
-      where: { name: "City Tours" },
-      update: {},
-      create: {
-        name: "City Tours",
-        description: "Urban exploration and city sightseeing",
-        color: "#10B981",
-        icon: "🏙️",
-      },
-    }),
-  ])
-
   // Create admin user
-  const hashedPassword = await bcrypt.hash("admin123", 12)
-  const adminUser = await prisma.user.upsert({
+  const hashedPassword = await bcrypt.hash("password", 12)
+
+  const admin = await prisma.user.upsert({
     where: { email: "admin@example.com" },
     update: {},
     create: {
@@ -60,157 +15,132 @@ async function main() {
       password: hashedPassword,
       name: "Admin User",
       phone: "+1234567890",
-      role: "ADMIN",
-      status: "ACTIVE",
-    },
-  })
-
-  // Create tour operator user
-  const operatorPassword = await bcrypt.hash("operator123", 12)
-  const operatorUser = await prisma.user.upsert({
-    where: { email: "operator@example.com" },
-    update: {},
-    create: {
-      email: "operator@example.com",
-      password: operatorPassword,
-      name: "John Smith",
-      phone: "+1987654321",
       role: "OPERATOR",
       status: "ACTIVE",
+      operator: {
+        create: {
+          companyName: "Demo Tours",
+          companyDescription: "A demo tour company for testing purposes",
+          companyAddress: "123 Demo Street",
+          companyCity: "Demo City",
+          companyCountry: "US",
+          companyWebsite: "https://demo-tours.com",
+          specializations: ["Adventure Tours", "Cultural Tours"],
+          languages: ["English", "Spanish"],
+        },
+      },
     },
   })
 
-  // Create tour operator profile
-  const tourOperator = await prisma.tourOperator.upsert({
-    where: { userId: operatorUser.id },
+  // Create tour categories
+  const categories = await Promise.all([
+    prisma.category.upsert({
+      where: { name: "Adventure" },
+      update: {},
+      create: {
+        name: "Adventure",
+        description: "Exciting outdoor activities and thrilling experiences",
+        color: "#10B981", // Green
+        icon: "mountain",
+      },
+    }),
+    prisma.category.upsert({
+      where: { name: "Cultural" },
+      update: {},
+      create: {
+        name: "Cultural",
+        description: "Immersive experiences in local traditions and heritage",
+        color: "#8B5CF6", // Purple
+        icon: "landmark",
+      },
+    }),
+    prisma.category.upsert({
+      where: { name: "Beach" },
+      update: {},
+      create: {
+        name: "Beach",
+        description: "Relaxing coastal getaways and island adventures",
+        color: "#3B82F6", // Blue
+        icon: "umbrella-beach",
+      },
+    }),
+  ])
+
+  // Create a sample tour
+  const tour = await prisma.tour.upsert({
+    where: { id: "demo-tour-1" },
     update: {},
     create: {
-      userId: operatorUser.id,
-      companyName: "Adventure Tours Co.",
-      companyDescription: "We specialize in creating unforgettable adventure experiences around the world.",
-      companyAddress: "123 Adventure Street",
-      companyCity: "San Francisco",
-      companyCountry: "United States",
-      companyWebsite: "https://adventuretours.com",
-      businessLicense: "BL123456789",
-      taxId: "TAX987654321",
-      experience: "10+",
-      specializations: ["Adventure Tours", "Mountain Trekking", "Wildlife Safari"],
-      languages: ["English", "Spanish", "French"],
-      rating: 4.8,
-      totalReviews: 156,
-      isVerified: true,
-    },
-  })
-
-  // Create sample tours
-  const tour1 = await prisma.tour.create({
-    data: {
-      title: "Santorini Sunset Paradise",
-      description:
-        "Experience the magical sunsets of Santorini with luxury accommodations and breathtaking views. This 7-day tour includes visits to iconic blue-domed churches, wine tastings, and sunset cruises.",
-      shortDescription: "7-day luxury tour of Santorini with sunset cruises and wine tastings",
-      location: "Santorini, Greece",
+      id: "demo-tour-1",
+      title: "Amazing Adventure Tour",
+      description: "Experience the thrill of adventure in the heart of nature",
+      shortDescription: "A thrilling 7-day adventure tour",
+      location: "Mountain Range, USA",
       duration: "7 days",
-      price: 1299,
-      originalPrice: 1599,
+      price: 1299.99,
+      originalPrice: 1499.99,
       maxGroupSize: 12,
-      minAge: 18,
-      difficulty: "Easy",
-      highlights: [
-        "Sunset cruise around the caldera",
-        "Wine tasting at local vineyards",
-        "Visit to Oia village",
-        "Traditional Greek cooking class",
-        "Private beach access",
-      ],
-      inclusions: [
-        "Luxury accommodation",
-        "Daily breakfast",
-        "Airport transfers",
-        "Professional guide",
-        "All entrance fees",
-      ],
-      exclusions: ["International flights", "Lunch and dinner", "Personal expenses", "Travel insurance"],
-      requirements: ["Valid passport", "Travel insurance recommended", "Moderate fitness level"],
-      restrictions: ["Not suitable for wheelchair users", "Minimum age 18 years"],
-      images: [
-        "/placeholder.svg?height=400&width=600",
-        "/placeholder.svg?height=400&width=600",
-        "/placeholder.svg?height=400&width=600",
-      ],
+      minAge: 16,
+      difficulty: "Moderate",
+      highlights: ["Scenic mountain hikes", "Wildlife spotting", "Camping under the stars", "Professional guides"],
+      inclusions: ["All meals", "Equipment", "Transportation", "Accommodation"],
+      exclusions: ["Flights", "Travel insurance", "Personal expenses"],
+      requirements: ["Good physical condition", "Proper hiking boots"],
+      restrictions: ["Not suitable for people with mobility issues"],
+      images: ["/images/tour1-1.jpg", "/images/tour1-2.jpg", "/images/tour1-3.jpg"],
       status: "ACTIVE",
       isPublished: true,
       isFeatured: true,
-      rating: 4.9,
-      totalReviews: 87,
-      totalBookings: 156,
-      categoryId: categories[2].id, // Beach & Island
-      operatorId: tourOperator.id,
+      categoryId: categories[0].id,
+      operatorId: admin.operator!.id,
     },
   })
 
-  // Create spots for the tour
-  await prisma.spot.createMany({
-    data: [
-      {
-        name: "Spring Departure",
-        description: "Perfect weather for sightseeing",
-        departureDate: new Date("2024-04-15"),
-        returnDate: new Date("2024-04-22"),
-        maxSeats: 12,
-        bookedSeats: 8,
-        price: 1299,
-        tourId: tour1.id,
-      },
-      {
-        name: "Summer Departure",
-        description: "Peak season with warm weather",
-        departureDate: new Date("2024-07-10"),
-        returnDate: new Date("2024-07-17"),
-        maxSeats: 12,
-        bookedSeats: 12,
-        price: 1599,
-        tourId: tour1.id,
-      },
-    ],
+  // Create a spot for the tour
+  const spot = await prisma.spot.upsert({
+    where: { id: "demo-spot-1" },
+    update: {},
+    create: {
+      id: "demo-spot-1",
+      name: "Summer Adventure 2023",
+      description: "Join our summer adventure tour",
+      departureDate: new Date("2023-07-15"),
+      returnDate: new Date("2023-07-22"),
+      maxSeats: 12,
+      bookedSeats: 5,
+      price: 1299.99,
+      status: "ACTIVE",
+      tourId: tour.id,
+    },
   })
 
-  // Create itinerary
-  await prisma.itinerary.createMany({
-    data: [
-      {
-        day: 1,
-        title: "Arrival in Santorini",
-        description:
-          "Arrive at Santorini airport and transfer to your luxury hotel. Evening welcome dinner with stunning caldera views.",
-        activities: ["Airport transfer", "Hotel check-in", "Welcome dinner"],
-        meals: ["DINNER"],
-        tourId: tour1.id,
-      },
-      {
-        day: 2,
-        title: "Oia Village & Sunset Cruise",
-        description:
-          "Explore the famous Oia village with its blue-domed churches and narrow streets. Evening sunset cruise around the caldera.",
-        activities: ["Oia village tour", "Photography session", "Sunset cruise"],
-        meals: ["BREAKFAST"],
-        tourId: tour1.id,
-      },
-    ],
-  })
+  // Create itinerary for the tour
+  const itinerary = await Promise.all(
+    Array.from({ length: 7 }, (_, i) =>
+      prisma.itinerary.create({
+        data: {
+          day: i + 1,
+          title: `Day ${i + 1}: ${i === 0 ? "Arrival" : i === 6 ? "Departure" : `Adventure Day ${i}`}`,
+          description: `Detailed description for day ${i + 1} of the tour.`,
+          activities: [
+            `Morning: ${i === 0 ? "Arrival and check-in" : "Hiking"}`,
+            `Afternoon: ${i === 6 ? "Departure" : "Exploration"}`,
+            `Evening: ${i === 0 ? "Welcome dinner" : i === 6 ? "Farewell dinner" : "Campfire"}`,
+          ],
+          meals: i === 0 ? ["DINNER"] : i === 6 ? ["BREAKFAST"] : ["BREAKFAST", "LUNCH", "DINNER"],
+          tourId: tour.id,
+        },
+      }),
+    ),
+  )
 
-  console.log("✅ Database seeded successfully!")
-  console.log(`📊 Created:`)
-  console.log(`   - ${categories.length} categories`)
-  console.log(`   - 2 users (admin & operator)`)
-  console.log(`   - 1 tour operator profile`)
-  console.log(`   - 1 sample tour with spots and itinerary`)
+  console.log({ admin, categories, tour, spot, itinerary })
+  console.log("Database seeded successfully!")
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Error seeding database:", e)
+    console.error(e)
     process.exit(1)
   })
   .finally(async () => {

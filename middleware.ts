@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
+import { verifyToken, getTokenFromRequest } from "@/lib/auth"
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public routes that don't require authentication
@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
   }
 
   // For protected routes, check authentication
-  const token = request.cookies.get("token")?.value || request.headers.get("authorization")?.replace("Bearer ", "")
+  const token = getTokenFromRequest(request)
 
   if (!token) {
     // Redirect to login if no token
@@ -25,17 +25,21 @@ export function middleware(request: NextRequest) {
 
   try {
     // Verify the token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const payload = await verifyToken(token)
+
+    if (!payload) {
+      throw new Error("Invalid token")
+    }
 
     // Check if user is trying to access admin routes
-    if (pathname.startsWith("/admin") && decoded.role !== "OPERATOR") {
+    if (pathname.startsWith("/admin") && payload.role !== "OPERATOR") {
       return NextResponse.redirect(new URL("/", request.url))
     }
 
     // Add user info to headers for API routes
     const requestHeaders = new Headers(request.headers)
-    requestHeaders.set("x-user-id", decoded.userId)
-    requestHeaders.set("x-user-role", decoded.role)
+    requestHeaders.set("x-user-id", payload.id as string)
+    requestHeaders.set("x-user-role", payload.role as string)
 
     return NextResponse.next({
       request: {

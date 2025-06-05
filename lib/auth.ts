@@ -1,49 +1,58 @@
-import type { NextRequest } from "next/server"
-import jwt from "jsonwebtoken"
+import { SignJWT, jwtVerify } from "jose"
+import { cookies } from "next/headers"
+import type { NextRequest, NextResponse } from "next/server"
 
-export interface AuthUser {
-  id: string
-  email: string
-  role: string
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "fallback_secret_for_development_only")
+
+export async function signToken(payload: any, expiresIn = "7d") {
+  const token = await new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(expiresIn)
+    .sign(JWT_SECRET)
+
+  return token
 }
 
-export async function verifyAuth(request: NextRequest): Promise<AuthUser | null> {
+export async function verifyToken(token: string) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
-
-    if (!token) {
-      return null
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-    return decoded
+    const { payload } = await jwtVerify(token, JWT_SECRET)
+    return payload
   } catch (error) {
     return null
   }
 }
 
-export function requireAuth(handler: Function) {
-  return async (request: NextRequest, context: any) => {
-    const user = await verifyAuth(request)
+export function setTokenCookie(response: NextResponse, token: string, rememberMe = false) {
+  // Set cookie expiry based on "remember me" option
+  const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60 // 30 days or 1 day in seconds
 
-    if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    return handler(request, context, user)
-  }
+  cookies().set({
+    name: "token",
+    value: token,
+    httpOnly: true,
+    path: "/",
+    secure: process.env.NODE_ENV === "production",
+    maxAge,
+    sameSite: "lax",
+  })
 }
 
-export function requireRole(roles: string[]) {
-  return (handler: Function) => {
-    return async (request: NextRequest, context: any) => {
-      const user = await verifyAuth(request)
+export function getTokenFromRequest(request: NextRequest) {
+  // Try to get token from cookies first
+  const token = request.cookies.get("token")?.value
 
-      if (!user || !roles.includes(user.role)) {
-        return Response.json({ error: "Forbidden" }, { status: 403 })
-      }
-
-      return handler(request, context, user)
+  // If no token in cookies, check Authorization header
+  if (!token) {
+    const authHeader = request.headers.get("authorization")
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      return authHeader.substring(7)
     }
   }
+
+  return token
+}
+
+export function removeTokenCookie() {
+  cookies().delete("token")
 }

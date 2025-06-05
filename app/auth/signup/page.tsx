@@ -61,6 +61,7 @@ export default function SignupPage() {
 
     // Terms
     agreeToTerms: false,
+    rememberMe: true, // Default to remember me for signup
   })
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -128,6 +129,7 @@ export default function SignupPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
+        credentials: "include", // Important for cookies
       })
 
       const data = await response.json()
@@ -136,9 +138,7 @@ export default function SignupPage() {
         throw new Error(data.error || "Registration failed")
       }
 
-      // Store token and user data
-      localStorage.setItem("auth_token", data.token)
-      localStorage.setItem("user_role", data.user.role)
+      // Store user data in localStorage for client-side access
       localStorage.setItem("user_data", JSON.stringify(data.user))
 
       // Redirect to admin dashboard
@@ -351,6 +351,7 @@ export default function SignupPage() {
                       onCheckedChange={(checked) =>
                         handleMultiSelectChange("specializations", spec, checked as boolean)
                       }
+                      className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
                     />
                     <Label htmlFor={spec} className="text-sm">
                       {spec}
@@ -369,6 +370,7 @@ export default function SignupPage() {
                       id={lang}
                       checked={formData.languages.includes(lang)}
                       onCheckedChange={(checked) => handleMultiSelectChange("languages", lang, checked as boolean)}
+                      className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
                     />
                     <Label htmlFor={lang} className="text-sm">
                       {lang}
@@ -435,6 +437,7 @@ export default function SignupPage() {
                 id="agreeToTerms"
                 checked={formData.agreeToTerms}
                 onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, agreeToTerms: checked as boolean }))}
+                className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
               />
               <Label htmlFor="agreeToTerms" className="text-sm">
                 I agree to the{" "}
@@ -509,12 +512,17 @@ export default function SignupPage() {
             </Button>
 
             {currentStep < 3 ? (
-              <Button type="button" onClick={handleNext}>
+              <Button type="button" onClick={handleNext} className="bg-green-500 hover:bg-green-600">
                 Next
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             ) : (
-              <Button type="button" onClick={handleSubmit} disabled={isLoading}>
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="bg-green-500 hover:bg-green-600"
+              >
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

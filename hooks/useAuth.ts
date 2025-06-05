@@ -7,11 +7,11 @@ import { useRouter } from "next/navigation"
 
 interface User {
   id: string
-  firstName: string
-  lastName: string
+  name: string
   email: string
   role: string
   status: string
+  operator?: any
 }
 
 interface AuthContextType {
@@ -30,40 +30,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    // Check for existing token on mount
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token")
-    if (token) {
-      // Verify token and get user data
-      verifyToken(token)
-    } else {
-      setLoading(false)
-    }
-  }, [])
-
-  const verifyToken = async (token: string) => {
-    try {
-      const response = await fetch("/api/auth/verify", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const userData = await response.json()
-        setUser(userData.user)
-      } else {
-        // Token is invalid, remove it
-        localStorage.removeItem("token")
-        sessionStorage.removeItem("token")
+    // Check if user data exists in localStorage (set during login/signup)
+    const userData = localStorage.getItem("user_data")
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData))
+      } catch (e) {
+        console.error("Failed to parse user data:", e)
       }
-    } catch (error) {
-      console.error("Token verification failed:", error)
-      localStorage.removeItem("token")
-      sessionStorage.removeItem("token")
-    } finally {
-      setLoading(false)
     }
-  }
+    setLoading(false)
+  }, [])
 
   const login = async (email: string, password: string, rememberMe = false) => {
     const response = await fetch("/api/auth/login", {
@@ -72,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ email, password, rememberMe }),
+      credentials: "include", // Important for cookies
     })
 
     const data = await response.json()
@@ -80,13 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(data.error || "Login failed")
     }
 
-    // Store token
-    if (rememberMe) {
-      localStorage.setItem("token", data.token)
-    } else {
-      sessionStorage.setItem("token", data.token)
-    }
-
+    // Store user data in localStorage for client-side access
+    localStorage.setItem("user_data", JSON.stringify(data.user))
     setUser(data.user)
 
     // Redirect based on role
@@ -97,9 +70,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const logout = () => {
-    localStorage.removeItem("token")
-    sessionStorage.removeItem("token")
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      })
+    } catch (error) {
+      console.error("Logout error:", error)
+    }
+
+    // Clear user data from localStorage
+    localStorage.removeItem("user_data")
     setUser(null)
     router.push("/auth/login")
   }

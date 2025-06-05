@@ -1,9 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import jwt from "jsonwebtoken"
-
-// Mock database - in production, use your actual database
-const users: any[] = []
+import { prisma } from "@/lib/prisma"
+import { signToken, setTokenCookie } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,10 +19,14 @@ export async function POST(request: NextRequest) {
       country,
       specializations,
       languages,
+      rememberMe = false,
     } = body
 
     // Check if user already exists
-    const existingUser = users.find((user) => user.email === email)
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    })
+
     if (existingUser) {
       return NextResponse.json({ error: "User already exists with this email" }, { status: 400 })
     }
@@ -32,50 +34,60 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create user
-    const user = {
-      id: `user_${Date.now()}`,
-      name,
-      email,
-      password: hashedPassword,
-      phone,
-      role: "OPERATOR",
-      status: "ACTIVE",
-      createdAt: new Date(),
-      operator: {
-        companyName,
-        description,
-        website,
-        address,
-        city,
-        country,
-        specializations: specializations || [],
-        languages: languages || [],
-      },
-    }
+    // Create user and tour operator in a transaction
+    const user = await prisma.$transaction(async (tx) => {
+      // Create user
+      const newUser = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+          phone,
+          role: "OPERATOR",
+          status: "ACTIVE",
+        },
+      })
 
-    // Store user (in production, save to database)
-    users.push(user)
+      // Create tour operator profile
+      await tx.tourOperator.create({
+        data: {
+          userId: newUser.id,
+          companyName,
+          companyDescription: description,
+          companyAddress: address,
+          companyCity: city,
+          companyCountry: country,
+          companyWebsite: website || null,
+          specializations: specializations || [],
+          languages: languages || [],
+        },
+      })
+
+      return newUser
+    })
 
     // Generate JWT token
-    const token = jwt.sign(
-      {
+    const token = await signToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    })
+
+    // Create response
+    const response = NextResponse.json({
+      message: "User created successfully",
+      user: {
         id: user.id,
+        name: user.name,
         email: user.email,
         role: user.role,
       },
-      process.env.JWT_SECRET!,
-      { expiresIn: "7d" },
-    )
-
-    // Return user data without password
-    const { password: _, ...userWithoutPassword } = user
-
-    return NextResponse.json({
-      message: "User created successfully",
-      token,
-      user: userWithoutPassword,
     })
+
+    // Set token cookie
+    setTokenCookie(response, token, rememberMe)
+
+    return response
   } catch (error) {
     console.error("Registration error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

@@ -39,6 +39,7 @@ export default function LoginPage() {
           password: formData.password,
           rememberMe: formData.rememberMe,
         }),
+        credentials: "include", // Important for cookies
       })
 
       const data = await response.json()
@@ -47,14 +48,7 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed")
       }
 
-      // Store token based on remember me preference
-      if (formData.rememberMe) {
-        localStorage.setItem("auth_token", data.token)
-      } else {
-        sessionStorage.setItem("auth_token", data.token)
-      }
-
-      localStorage.setItem("user_role", data.user.role)
+      // Store user data in localStorage for client-side access
       localStorage.setItem("user_data", JSON.stringify(data.user))
 
       // Redirect based on role
@@ -79,7 +73,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-green-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-green-50 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
@@ -146,6 +140,7 @@ export default function LoginPage() {
                     name="rememberMe"
                     checked={formData.rememberMe}
                     onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, rememberMe: checked as boolean }))}
+                    className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
                   />
                   <Label htmlFor="rememberMe" className="text-sm">
                     Remember me
@@ -158,7 +153,7 @@ export default function LoginPage() {
             </CardContent>
 
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-green-500 hover:bg-green-600" disabled={isLoading}>
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

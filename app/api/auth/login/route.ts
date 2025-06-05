@@ -1,42 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import jwt from "jsonwebtoken"
-
-// Mock database - in production, use your actual database
-// This should be the same array as in register route
-const users: any[] = []
-
-// Add a default admin user for testing
-if (users.length === 0) {
-  users.push({
-    id: "admin_1",
-    name: "Admin User",
-    email: "admin@example.com",
-    password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/VcSAg/9qm", // 'password' hashed
-    phone: "+1234567890",
-    role: "OPERATOR",
-    status: "ACTIVE",
-    createdAt: new Date(),
-    operator: {
-      companyName: "Demo Tours",
-      description: "Demo tour company",
-      website: "https://demo.com",
-      address: "123 Demo St",
-      city: "Demo City",
-      country: "US",
-      specializations: ["Adventure Tours"],
-      languages: ["English"],
-    },
-  })
-}
+import { prisma } from "@/lib/prisma"
+import { signToken, setTokenCookie } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password, rememberMe } = body
+    const { email, password, rememberMe = false } = body
 
     // Find user by email
-    const user = users.find((u) => u.email === email)
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        operator: true,
+      },
+    })
+
     if (!user) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
@@ -47,26 +26,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
 
-    // Generate JWT token
-    const tokenExpiry = rememberMe ? "30d" : "1d"
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: tokenExpiry },
-    )
+    // Update last login time
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    })
 
-    // Return user data without password
+    // Generate JWT token
+    const token = await signToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    })
+
+    // Create response with user data (excluding password)
     const { password: _, ...userWithoutPassword } = user
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       message: "Login successful",
-      token,
       user: userWithoutPassword,
     })
+
+    // Set token cookie
+    setTokenCookie(response, token, rememberMe)
+
+    return response
   } catch (error) {
     console.error("Login error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
