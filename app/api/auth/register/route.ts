@@ -1,80 +1,88 @@
 import { type NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/database"
 import { signToken, setTokenCookie } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {
-      name,
       email,
       password,
+      name,
       phone,
+      role = "OPERATOR",
       companyName,
-      description,
-      website,
-      address,
-      city,
-      country,
+      companyDescription,
+      companyAddress,
+      companyCity,
+      companyCountry,
+      companyWebsite,
+      businessLicense,
+      experience,
       specializations = [],
       languages = [],
-      rememberMe = false,
     } = body
 
     // Validate required fields
-    if (!name || !email || !password || !phone) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!email || !password || !name) {
+      return NextResponse.json({ error: "Email, password, and name are required" }, { status: 400 })
+    }
+
+    if (role === "OPERATOR" && (!companyName || !companyDescription || !companyAddress)) {
+      return NextResponse.json(
+        {
+          error: "Company name, description, and address are required for operators",
+        },
+        { status: 400 },
+      )
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    })
-
+    const existingUser = await db.findUserByEmail(email)
     if (existingUser) {
-      return NextResponse.json({ error: "User already exists with this email" }, { status: 400 })
+      return NextResponse.json({ error: "Email already exists" }, { status: 409 })
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create user and tour operator in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    // Create user and operator in transaction
+    const result = await db.transaction(async (tx: any) => {
       // Create user
-      const newUser = await tx.user.create({
+      const user = await tx.user.create({
         data: {
           email,
           password: hashedPassword,
           name,
           phone,
-          role: "OPERATOR",
-          status: "ACTIVE",
+          role,
+          status: "ACTIVE", // Auto-activate for demo
         },
       })
 
-      // Create tour operator profile if company details provided
+      // Create operator profile if role is OPERATOR
       let operator = null
-      if (companyName && description) {
+      if (role === "OPERATOR") {
         operator = await tx.tourOperator.create({
           data: {
-            userId: newUser.id,
+            userId: user.id,
             companyName,
-            companyDescription: description,
-            companyAddress: address || "",
-            companyCity: city || "",
-            companyCountry: country || "",
-            companyWebsite: website || null,
-            specializations,
-            languages,
-            isVerified: false,
-            rating: 0,
-            totalReviews: 0,
+            companyDescription,
+            companyAddress,
+            companyCity: companyCity || "",
+            companyCountry: companyCountry || "",
+            companyWebsite: companyWebsite || "",
+            businessLicense: businessLicense || "",
+            experience: experience || "",
+            specializations: Array.isArray(specializations) ? specializations : [],
+            languages: Array.isArray(languages) ? languages : [],
+            isVerified: true, // Auto-verify for demo
           },
         })
       }
 
-      return { user: newUser, operator }
+      return { user, operator }
     })
 
     // Generate JWT token
@@ -88,28 +96,19 @@ export async function POST(request: NextRequest) {
     const { password: _, ...userWithoutPassword } = result.user
 
     const response = NextResponse.json({
-      message: "User created successfully",
+      message: "Registration successful",
       user: {
         ...userWithoutPassword,
         operator: result.operator,
       },
-      token, // Include token in response for debugging
     })
 
     // Set token cookie
-    setTokenCookie(response, token, rememberMe)
+    setTokenCookie(response, token, false)
 
     return response
   } catch (error) {
     console.error("Registration error:", error)
-
-    // Handle specific Prisma errors
-    if (error instanceof Error) {
-      if (error.message.includes("Unique constraint")) {
-        return NextResponse.json({ error: "Email already exists" }, { status: 400 })
-      }
-    }
-
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

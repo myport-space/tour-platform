@@ -1,167 +1,111 @@
-import { prisma } from "./prisma"
+// Simple in-memory database for when Prisma is not available
+const users: any[] = []
+const operators: any[] = []
 
-// Check if we're in build mode
-const isBuildTime = process.env.NODE_ENV === "production" && !process.env.DATABASE_URL
-
-// Database service with build-time handling
-export class DatabaseService {
-  private static instance: DatabaseService
-  private isConnected = false
-  private isMockMode = false
-
-  private constructor() {}
-
-  static getInstance(): DatabaseService {
-    if (!DatabaseService.instance) {
-      DatabaseService.instance = new DatabaseService()
-    }
-    return DatabaseService.instance
-  }
-
-  async checkConnection(): Promise<boolean> {
-    if (this.isMockMode) {
-      return true
-    }
-
-    try {
-      await prisma.$connect()
-      this.isConnected = true
-      return true
-    } catch (error) {
-      console.error("Database connection failed:", error)
-      this.isConnected = false
-      return false
-    }
-  }
-
-  async createUser(data: any) {
-    if (this.isMockMode) {
-      return {
-        id: "mock-user-id",
-        ...data,
-        password: "hashed-password",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-    }
-
-    try {
-      if (!this.isConnected) {
-        await this.checkConnection()
-      }
-
-      return await prisma.user.create({
-        data,
-        include: {
-          operator: true,
-        },
-      })
-    } catch (error) {
-      console.error("Failed to create user:", error)
-      throw new Error("Failed to create user")
-    }
-  }
-
+// Database interface that works with or without Prisma
+export const db = {
+  // User operations
   async findUserByEmail(email: string) {
-    if (this.isMockMode) {
-      // Return default admin user for build
-      if (email === "admin@example.com") {
-        return {
-          id: "admin-id",
-          email: "admin@example.com",
-          password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5uO.G", // "password"
-          name: "Admin User",
-          role: "OPERATOR",
-          status: "ACTIVE",
-          operator: null,
-        }
-      }
-      return null
-    }
+    if (typeof window !== "undefined") return null
 
     try {
-      if (!this.isConnected) {
-        await this.checkConnection()
+      const { prisma } = await import("./prisma")
+      if (prisma && prisma.user) {
+        return await prisma.user.findUnique({
+          where: { email },
+          include: { operator: true },
+        })
       }
-
-      return await prisma.user.findUnique({
-        where: { email },
-        include: {
-          operator: true,
-        },
-      })
     } catch (error) {
-      console.error("Failed to find user:", error)
-      return null
+      console.warn("Prisma not available, using fallback")
     }
-  }
+
+    // Fallback to in-memory
+    return users.find((user) => user.email === email) || null
+  },
+
+  async createUser(userData: any) {
+    if (typeof window !== "undefined") return null
+
+    try {
+      const { prisma } = await import("./prisma")
+      if (prisma && prisma.user) {
+        return await prisma.user.create({
+          data: userData,
+          include: { operator: true },
+        })
+      }
+    } catch (error) {
+      console.warn("Prisma not available, using fallback")
+    }
+
+    // Fallback to in-memory
+    const newUser = { id: Date.now().toString(), ...userData }
+    users.push(newUser)
+    return newUser
+  },
 
   async updateUser(id: string, data: any) {
-    if (this.isMockMode) {
-      return {
-        id,
-        ...data,
-        updatedAt: new Date(),
-      }
-    }
+    if (typeof window !== "undefined") return null
 
     try {
-      if (!this.isConnected) {
-        await this.checkConnection()
+      const { prisma } = await import("./prisma")
+      if (prisma && prisma.user) {
+        return await prisma.user.update({
+          where: { id },
+          data,
+          include: { operator: true },
+        })
       }
-
-      return await prisma.user.update({
-        where: { id },
-        data,
-      })
     } catch (error) {
-      console.error("Failed to update user:", error)
-      throw new Error("Failed to update user")
+      console.warn("Prisma not available, using fallback")
     }
-  }
 
-  async createUserWithOperator(userData: any, operatorData: any) {
-    if (this.isMockMode) {
-      const user = {
-        id: "mock-user-id",
-        ...userData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-      const operator = {
-        id: "mock-operator-id",
-        userId: user.id,
-        ...operatorData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-      return { user, operator }
+    // Fallback to in-memory
+    const userIndex = users.findIndex((user) => user.id === id)
+    if (userIndex !== -1) {
+      users[userIndex] = { ...users[userIndex], ...data }
+      return users[userIndex]
     }
+    return null
+  },
+
+  async createOperator(operatorData: any) {
+    if (typeof window !== "undefined") return null
 
     try {
-      if (!this.isConnected) {
-        await this.checkConnection()
+      const { prisma } = await import("./prisma")
+      if (prisma && prisma.tourOperator) {
+        return await prisma.tourOperator.create({
+          data: operatorData,
+        })
       }
-
-      return await prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({
-          data: userData,
-        })
-
-        const operator = await tx.tourOperator.create({
-          data: {
-            ...operatorData,
-            userId: user.id,
-          },
-        })
-
-        return { user, operator }
-      })
     } catch (error) {
-      console.error("Failed to create user with operator:", error)
-      throw new Error("Failed to create user with operator")
+      console.warn("Prisma not available, using fallback")
     }
-  }
+
+    // Fallback to in-memory
+    const newOperator = { id: Date.now().toString(), ...operatorData }
+    operators.push(newOperator)
+    return newOperator
+  },
+
+  async transaction(callback: any) {
+    if (typeof window !== "undefined") return null
+
+    try {
+      const { prisma } = await import("./prisma")
+      if (prisma && prisma.$transaction) {
+        return await prisma.$transaction(callback)
+      }
+    } catch (error) {
+      console.warn("Prisma transaction not available, using fallback")
+    }
+
+    // Fallback - execute callback with mock transaction
+    return await callback({
+      user: { create: this.createUser.bind(this) },
+      tourOperator: { create: this.createOperator.bind(this) },
+    })
+  },
 }
-
-export const db = DatabaseService.getInstance()

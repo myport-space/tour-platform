@@ -12,8 +12,8 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ["@prisma/client", "prisma"],
   },
-  webpack: (config, { isServer, dev }) => {
-    if (isServer && !dev) {
+  webpack: (config, { isServer }) => {
+    if (isServer) {
       // Handle Prisma client during build
       config.externals.push({
         "@prisma/client": "commonjs @prisma/client",
@@ -27,6 +27,13 @@ const nextConfig = {
       net: false,
       tls: false,
     }
+
+    // Ignore missing Prisma client during build
+    config.plugins.push(
+      new config.webpack.IgnorePlugin({
+        resourceRegExp: /^\.prisma\/client$/,
+      }),
+    )
 
     return config
   },
