@@ -58,37 +58,39 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Prepare user data
-    const userData = {
-      email,
-      password: hashedPassword,
-      name,
-      phone,
-      role: "OPERATOR" as const,
-      status: "ACTIVE" as const,
-    }
+    // Create user
+    const user = await prisma.user.create({
+       data:{
+        name,
+        email,
+        password: hashedPassword,
+        phone,
+        role: "OPERATOR",
+        status: "ACTIVE", 
+       },
+       select:{
+        id:true,
+        email:true,
+        phone:true,
+        role:true,
+        status:true
+       }
+    }) 
 
-    // Prepare operator data if provided
-    let result
-    if (companyName && description) {
-      const operatorData = {
-        companyName,
-        companyDescription: description,
-        companyAddress: address || "",
-        companyCity: city || "",
-        companyCountry: country || "",
-        companyWebsite: website || null,
-        specializations,
-        languages,
-        isVerified: false,
-        rating: 0,
-        totalReviews: 0,
-      }
-
-      result = await db.createUserWithOperator(userData, operatorData)
-    } else {
-      result = { user: await db.createUser(userData), operator: null }
-    }
+    // Create a operator for the user
+    await prisma.tourOperator.create({
+       data:{
+            companyName,
+            companyDescription,
+            companyWebsite,
+            companyAddress,
+            companyCity,
+            companyCountry,
+            specializations: specializations || [],
+            languages: languages || [],
+            userId:user.id
+       }
+    })
 
     // Generate JWT token
     const token = jwt.sign(
@@ -110,10 +112,7 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({
       message: "User created successfully",
-      user: {
-        ...userWithoutPassword,
-        operator: result.operator,
-      },
+      user: user
     })
 
     // Set token cookie
