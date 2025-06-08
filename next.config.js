@@ -29,12 +29,7 @@ const nextConfig = {
     }
 
     // Ignore missing Prisma client during build
-    config.plugins.push(
-      new config.webpack.IgnorePlugin({
-        resourceRegExp: /^\.prisma\/client$/,
-      }),
-    )
-
+     
     return config
   },
 }

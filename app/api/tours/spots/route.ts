@@ -26,7 +26,9 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = {
        tour: {
-        operatorId: payload.id, // Only get spots for tours owned by this operator
+        operator:{
+          userId:payload.id
+        } , // Only get spots for tours owned by this operator
       },
     }
 
