@@ -32,6 +32,11 @@ enum TourStatus {
   SUSPENDED
 }
 
+enum TourType {
+  IN_COUNTRY
+  GLOBAL
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
@@ -150,14 +155,14 @@ model TourOperator {
   // Relations
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   tours Tour[]
-
+  categories Category[]
   @@map("tour_operators")
 }
 
 // Tour Models
 model Category {
   id          String   @id @default(cuid())
-  name        String   @unique
+  name        String   @default("Adevnture")
   description String?
   color       String   @default("#3B82F6")
   icon        String?
@@ -167,6 +172,8 @@ model Category {
 
   // Relations
   tours Tour[]
+  operatorId String
+  operator TourOperator @relation(fields: [operatorId],references: [id],onDelete: Cascade)
 
   @@map("categories")
 }
@@ -178,6 +185,10 @@ model Tour {
   shortDescription  String?
   location          String
   duration          String
+  stayNights        Int?       @default(0)
+  tourType          TourType   @default(IN_COUNTRY)
+  originCountry     String?
+  destinationCountry String?
   price             Float
   originalPrice     Float?
   currency          String     @default("USD")
@@ -238,15 +249,15 @@ model Spot {
 }
 
 model Itinerary {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   day         Int
   title       String
-  description String   @db.Text
+  description String     @db.Text
   activities  String[]
   meals       MealType[]
   tourId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   // Relations
   tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
@@ -306,6 +317,7 @@ model Booking {
   notes          String?       @db.Text
   customerId     String
   tourId         String
+  seats         Int
   spotId         String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -367,7 +379,7 @@ model Payment {
 // Review Models
 model Review {
   id               String   @id @default(cuid())
-  rating           Int     
+  rating           Int      
   title            String?
   comment          String   @db.Text
   isVerified       Boolean  @default(false)
@@ -386,4 +398,3 @@ model Review {
   @@map("reviews")
 }
 
-// Indexes for better performance

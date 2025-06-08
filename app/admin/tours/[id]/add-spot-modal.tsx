@@ -31,7 +31,7 @@ export default function AddSpotModal({ open, onOpenChange, tourId, onSpotAdded }
     setLoading(true)
 
     try {
-      const response = await fetch("/api/spots", {
+      const response = await fetch(`/api/tours/${tourId}/spots`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

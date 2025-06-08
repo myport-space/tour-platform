@@ -9,7 +9,7 @@ export interface TokenPayload {
   role: string
 }
 
-export async function signToken(payload: TokenPayload): Promise<string> {
+export async function signToken(payload: any): Promise<string> {
   return await new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -17,10 +17,10 @@ export async function signToken(payload: TokenPayload): Promise<string> {
     .sign(JWT_SECRET)
 }
 
-export async function verifyToken(token: string): Promise<TokenPayload | null> {
+export async function verifyToken(token: string): Promise<TokenPayload | any> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET)
-    return payload as TokenPayload
+    return payload as unknown as TokenPayload
   } catch (error) {
     console.error("Token verification failed:", error)
     return null

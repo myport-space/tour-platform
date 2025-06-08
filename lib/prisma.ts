@@ -1,27 +1,34 @@
+// Conditional Prisma client for deployment
 import { PrismaClient } from "@prisma/client"
 
-// Create a singleton instance of PrismaClient
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-// Initialize Prisma client with proper error handling
 let prisma: PrismaClient
 
-try {
-  prisma =
-    globalForPrisma.prisma ??
-    new PrismaClient({
-      log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-    })
+const globalForPrisma = global as unknown as { prisma: PrismaClient }
 
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = prisma
+if (process.env.NODE_ENV === "production" || process.env.DATABASE_URL) {
+  try {
+    // Create singleton instance
+    prisma =
+      globalForPrisma.prisma ??
+      new PrismaClient({
+        log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+      })
+
+    if (process.env.NODE_ENV !== "production") {
+      globalForPrisma.prisma = prisma
+    }
+  } catch (error) {
+    console.warn("Prisma client not available:", error.message)
+    prisma = null
   }
-} catch (error) {
-  console.error("Failed to initialize Prisma client:", error)
-  // Create a fallback client for build time
-  prisma = {} as PrismaClient
+} else {
+  // Development fallback
+  try {
+    prisma = new PrismaClient()
+  } catch (error) {
+    console.warn("Prisma client not available in development:", error.message)
+    prisma = null
+  }
 }
 
 export { prisma }

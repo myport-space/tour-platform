@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -20,9 +20,11 @@ import {
   MapPin,
   Phone,
   User,
+  AlertCircle,
 } from "lucide-react"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface BookingDetailsProps {
   params: {
@@ -32,53 +34,240 @@ interface BookingDetailsProps {
 
 export default function BookingDetails({ params }: BookingDetailsProps) {
   const [activeTab, setActiveTab] = useState("payments")
+  const [booking, setBooking] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock booking data
-  const booking = {
-    id: "BK001",
-    status: "Confirmed",
-    paymentStatus: "Paid",
-    totalAmount: 2598,
-    travelers: 2,
-    tour: {
-      title: "Santorini Sunset Paradise",
-      description: "Experience the magical sunsets of Santorini with luxury accommodations and breathtaking views.",
-      location: "Santorini, Greece",
-      duration: "7 days",
-      startDate: "4/15/2024",
-      endDate: "4/22/2024",
-      image: "/placeholder.svg?height=120&width=160",
-    },
-    customer: {
-      name: "Sarah Johnson",
-      role: "Lead Traveler",
-      email: "sarah.johnson@email.com",
-      phone: "+1 (555) 123-4567",
-      address: "123 Main St, New York, NY 10001",
-    },
-    emergencyContact: {
-      name: "John Johnson",
-      relationship: "Spouse",
-      phone: "+1 (555) 987-6543",
-    },
-    payments: [
-      {
-        id: 1,
-        amount: 1299,
-        method: "Credit Card",
-        transaction: "TXN123456",
-        date: "3/15/2024",
-        status: "Completed",
-      },
-      {
-        id: 2,
-        amount: 1299,
-        method: "Credit Card",
-        transaction: "TXN123457",
-        date: "3/15/2024",
-        status: "Completed",
-      },
-    ],
+  useEffect(() => {
+    const fetchBookingDetails = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/bookings/${params.id}`, {
+          credentials: "include",
+        })
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError("Booking not found")
+          } else {
+            setError("Failed to fetch booking details")
+          }
+          setLoading(false)
+          return
+        }
+
+        const data = await response.json()
+        setBooking(data)
+        setLoading(false)
+      } catch (error) {
+        console.error("Error fetching booking details:", error)
+        setError("An error occurred while fetching booking details")
+        setLoading(false)
+      }
+    }
+
+    fetchBookingDetails()
+  }, [params.id])
+
+  // Function to get status badge color
+  const getStatusColor = (status: string = "pending") => {
+    switch (status?.toLowerCase()) {
+      case "confirmed":
+        return "bg-green-100 text-green-800 border-green-200"
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      case "cancelled":
+        return "bg-red-100 text-red-800 border-red-200"
+      case "completed":
+        return "bg-blue-100 text-blue-800 border-blue-200"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200"
+    }
+  }
+
+  // Function to get payment status badge color
+  const getPaymentStatusColor = (status: string= "pending") => {
+    switch (status?.toLowerCase()) {
+      case "paid":
+        return "bg-green-100 text-green-800 border-green-200"
+      case "partial":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      case "pending":
+        return "bg-orange-100 text-orange-800 border-orange-200"
+      case "refunded":
+        return "bg-red-100 text-red-800 border-red-200"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200"
+    }
+  }
+
+  // Loading skeleton
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Link href="/admin/bookings">
+                <Button variant="ghost" size="sm" className="text-gray-600">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Bookings
+                </Button>
+              </Link>
+              <div>
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-4 w-32 mt-2" />
+              </div>
+            </div>
+            <div className="flex space-x-3">
+              <Skeleton className="h-10 w-28" />
+              <Skeleton className="h-10 w-28" />
+              <Skeleton className="h-10 w-28" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="border border-gray-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Skeleton className="h-4 w-24 mb-2" />
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                    <Skeleton className="h-12 w-12 rounded-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <Card className="border border-gray-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center mb-4">
+                    <Skeleton className="h-5 w-5 mr-2" />
+                    <Skeleton className="h-6 w-40" />
+                  </div>
+
+                  <div className="flex space-x-4">
+                    <Skeleton className="w-40 h-30 rounded-lg" />
+                    <div className="flex-1">
+                      <Skeleton className="h-6 w-3/4 mb-2" />
+                      <Skeleton className="h-4 w-full mb-4" />
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <div className="flex flex-wrap gap-4">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-200 mt-6">
+                <div className="border-b border-gray-200 p-4">
+                  <div className="flex space-x-4">
+                    <Skeleton className="h-10 w-24" />
+                    <Skeleton className="h-10 w-24" />
+                    <Skeleton className="h-10 w-24" />
+                    <Skeleton className="h-10 w-24" />
+                  </div>
+                </div>
+                <div className="p-6">
+                  <Skeleton className="h-40 w-full" />
+                </div>
+              </Card>
+            </div>
+
+            <div>
+              <Card className="border border-gray-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center mb-4">
+                    <Skeleton className="h-5 w-5 mr-2" />
+                    <Skeleton className="h-6 w-40" />
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Skeleton className="h-6 w-40" />
+                      <Skeleton className="h-4 w-24 mt-1" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-200">
+                      <Skeleton className="h-5 w-40 mb-2" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4 mt-1" />
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-200">
+                      <Skeleton className="h-5 w-32 mb-3" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="flex flex-col items-center justify-center h-[60vh]">
+          <div className="bg-red-50 p-6 rounded-lg text-center max-w-md">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{error}</h2>
+            <p className="text-gray-600 mb-6">
+              We couldn't find the booking you're looking for. It may have been deleted or you may not have permission
+              to view it.
+            </p>
+            <Link href="/admin/bookings">
+              <Button>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Bookings
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </AdminLayout>
+    )
+  }
+
+  // No booking data
+  if (!booking) {
+    return (
+      <AdminLayout>
+        <div className="flex flex-col items-center justify-center h-[60vh]">
+          <div className="bg-yellow-50 p-6 rounded-lg text-center max-w-md">
+            <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">No Data Available</h2>
+            <p className="text-gray-600 mb-6">We couldn't load the booking data. Please try again later.</p>
+            <Link href="/admin/bookings">
+              <Button>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Bookings
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </AdminLayout>
+    )
   }
 
   return (
@@ -121,7 +310,7 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-2">Booking Status</p>
-                  <Badge className="bg-green-100 text-green-800 border-green-200">{booking.status}</Badge>
+                  <Badge className={getStatusColor(booking.status)}>{booking.status}</Badge>
                 </div>
                 <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
                   <CheckCircle className="h-6 w-6 text-green-600" />
@@ -135,7 +324,7 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-2">Payment Status</p>
-                  <Badge className="bg-green-100 text-green-800 border-green-200">{booking.paymentStatus}</Badge>
+                  <Badge className={getPaymentStatusColor(booking.paymentStatus||"Paid")}>{booking.paymentStatus}</Badge>
                 </div>
                 <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <CreditCard className="h-6 w-6 text-blue-600" />
@@ -163,7 +352,7 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-2">Travelers</p>
-                  <p className="text-2xl font-bold text-gray-900">{booking.travelers}</p>
+                  <p className="text-2xl font-bold text-gray-900">{booking.travelersCount}</p>
                 </div>
                 <div className="h-12 w-12 bg-orange-100 rounded-full flex items-center justify-center">
                   <Users className="h-6 w-6 text-orange-600" />
@@ -187,7 +376,7 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
                 <div className="flex space-x-4">
                   <div className="w-40 h-30 bg-gray-200 rounded-lg flex-shrink-0">
                     <img
-                      src={booking.tour.image || "/placeholder.svg"}
+                      src={booking.tour.image || "/placeholder.svg?height=120&width=160"}
                       alt={booking.tour.title}
                       className="w-full h-full object-cover rounded-lg"
                     />
@@ -247,44 +436,117 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
                 </TabsList>
 
                 <TabsContent value="travelers" className="p-6">
-                  <div className="text-gray-600">Travelers information will be displayed here.</div>
+                  {booking.travelers && booking.travelers.length > 0 ? (
+                    <div className="space-y-4">
+                      {booking.travelers.map((traveler: any) => (
+                        <div
+                          key={traveler.id}
+                          className="flex items-center justify-between py-4 border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="    flex items-center space-x-4">
+                            <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">{traveler.name}</p>
+                              <p className="text-sm text-gray-600">
+                                {traveler.age} years • {traveler.gender}
+                              </p>
+                            </div>
+                          </div>
+                          {traveler.specialRequirements && (
+                            <div className="text-right">
+                              <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs">
+                                Special Requirements
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-gray-600">No traveler information available.</div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="itinerary" className="p-6">
-                  <div className="text-gray-600">Tour itinerary will be displayed here.</div>
+                  {booking.tour.itinerary && booking.tour.itinerary.length > 0 ? (
+                    <div className="space-y-6">
+                      {booking.tour.itinerary.map((day: any) => (
+                        <div key={day.day} className="border-b border-gray-100 pb-4 last:border-b-0 last:pb-0">
+                          <h3 className="font-semibold text-gray-900 mb-2">
+                            Day {day.day}: {day.title}
+                          </h3>
+                          <p className="text-gray-600 mb-3">{day.description}</p>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                            {day.accommodation && (
+                              <div className="bg-gray-50 p-3 rounded-md">
+                                <h4 className="text-sm font-medium text-gray-700 mb-1">Accommodation</h4>
+                                <p className="text-sm text-gray-600">{day.accommodation.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {day.accommodation.type} • {day.accommodation.roomType}
+                                </p>
+                              </div>
+                            )}
+
+                            {day.transportation && (
+                              <div className="bg-gray-50 p-3 rounded-md">
+                                <h4 className="text-sm font-medium text-gray-700 mb-1">Transportation</h4>
+                                <p className="text-sm text-gray-600">{day.transportation.type}</p>
+                                <p className="text-xs text-gray-500">{day.transportation.description}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-gray-600">No itinerary information available.</div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="payments" className="p-6">
-                  <div className="space-y-4">
-                    {booking.payments.map((payment) => (
-                      <div
-                        key={payment.id}
-                        className="flex items-center justify-between py-4 border-b border-gray-100 last:border-b-0"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                            <CreditCard className="h-5 w-5 text-green-600" />
+                  {booking.payments && booking.payments.length > 0 ? (
+                    <div className="space-y-4">
+                      {booking.payments.map((payment: any) => (
+                        <div
+                          key={payment.id}
+                          className="flex items-center justify-between py-4 border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                              <CreditCard className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">${payment.amount.toLocaleString()}</p>
+                              <p className="text-sm text-gray-600">
+                                {payment.method} • {payment.transaction}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">${payment.amount.toLocaleString()}</p>
-                            <p className="text-sm text-gray-600">
-                              {payment.method} • {payment.transaction}
-                            </p>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-600">{payment.date}</p>
+                            <Badge className={getPaymentStatusColor(payment.status)+" text-xs"}>
+                              {payment.status}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">{payment.date}</p>
-                          <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
-                            {payment.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-gray-600">No payment information available.</div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="requests" className="p-6">
-                  <div className="text-gray-600">Special requests will be displayed here.</div>
+                  {booking.specialRequests ? (
+                    <div className="space-y-4">
+                      {booking.specialRequests}
+                    </div>
+                  ) : (
+                    <div className="text-gray-600">No special requests available.</div>
+                  )}
                 </TabsContent>
               </Tabs>
             </Card>

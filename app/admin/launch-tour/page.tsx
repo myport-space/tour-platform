@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -65,6 +65,137 @@ export default function LaunchTour() {
       bookings: [], // Array of booking IDs assigned to this spot
     },
   ])
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitMessage, setSubmitMessage] = useState("")
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    location: "",
+    duration: "",
+    groupSize: "",
+    difficulty: "",
+    currentPrice: "",
+    originalPrice: "",
+    currency: "USD",
+    discountPercentage: "",
+    pricingNotes: "",
+    categoryId: "", // Add category selection
+  })
+
+  const [categories, setCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true)
+      const response = await fetch("/api/categories", {
+        credentials: "include",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories)
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error)
+    } finally {
+      setCategoriesLoading(false)
+    }
+  }
+
+  // Add form submission handler
+  const handleSubmit = async () => {
+    setIsSubmitting(true)
+    setSubmitMessage("")
+
+    try {
+      const tourData = {
+        // Basic Info
+        title: formData.title,
+        description: formData.description,
+        location: formData.location,
+        duration: formData.duration,
+        stayNights,
+        groupSize: formData.groupSize,
+        difficulty: formData.difficulty,
+        highlights,
+        tourType,
+        originCountry,
+        destinationCountry,
+        categoryId: formData.categoryId, // Add this line
+
+        // Spots
+        tourSpots,
+
+        // Images
+        images,
+
+        // Itinerary
+        itinerary,
+
+        // Inclusions
+        included,
+        notIncluded,
+        restrictions,
+
+        // Transport
+        transportToDestination: {
+          description: "Commercial flights and transfers",
+        },
+        localTransport: {
+          description: "Local transportation included",
+        },
+
+        // Operator
+        operatorInfo: {
+          name: "Tour Operator",
+        },
+
+        // Pricing
+        currentPrice: formData.currentPrice,
+        originalPrice: formData.originalPrice,
+        currency: formData.currency,
+        discountPercentage: formData.discountPercentage,
+        pricingNotes: formData.pricingNotes,
+      }
+
+      const response = await fetch("/api/tours/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(tourData),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setSubmitMessage("Tour created successfully!")
+        // Reset form or redirect
+        setTimeout(() => {
+          window.location.href = "/admin/tours"
+        }, 2000)
+      } else {
+        setSubmitMessage(result.error || "Failed to create tour")
+      }
+    } catch (error) {
+      console.error("Error submitting tour:", error)
+      setSubmitMessage("Failed to create tour. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Update form inputs to use formData state
+  const updateFormData = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
 
   const addTourSpot = () => {
     setTourSpots([
@@ -278,13 +409,25 @@ export default function LaunchTour() {
           <Label htmlFor="title" className="text-sm">
             Tour Title
           </Label>
-          <Input id="title" placeholder="e.g., Santorini Sunset Paradise" className="rounded-xl" />
+          <Input
+            id="title"
+            value={formData.title}
+            onChange={(e) => updateFormData("title", e.target.value)}
+            placeholder="e.g., Santorini Sunset Paradise"
+            className="rounded-xl"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="location" className="text-sm">
             Specific Location/City
           </Label>
-          <Input id="location" placeholder="e.g., Santorini, Tokyo, Karachi" className="rounded-xl" />
+          <Input
+            id="location"
+            value={formData.location}
+            onChange={(e) => updateFormData("location", e.target.value)}
+            placeholder="e.g., Santorini, Tokyo, Karachi"
+            className="rounded-xl"
+          />
         </div>
       </motion.div>
 
@@ -293,7 +436,13 @@ export default function LaunchTour() {
           <Label htmlFor="duration" className="text-sm">
             Duration
           </Label>
-          <Input id="duration" placeholder="e.g., 7 Days" className="rounded-xl" />
+          <Input
+            id="duration"
+            value={formData.duration}
+            onChange={(e) => updateFormData("duration", e.target.value)}
+            placeholder="e.g., 7 Days"
+            className="rounded-xl"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="stayNights" className="text-sm">
@@ -312,7 +461,13 @@ export default function LaunchTour() {
           <Label htmlFor="groupSize" className="text-sm">
             Group Size
           </Label>
-          <Input id="groupSize" placeholder="e.g., 12 People" className="rounded-xl" />
+          <Input
+            id="groupSize"
+            value={formData.groupSize}
+            onChange={(e) => updateFormData("groupSize", e.target.value)}
+            placeholder="e.g., 12 People"
+            className="rounded-xl"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="difficulty" className="text-sm">
@@ -338,10 +493,48 @@ export default function LaunchTour() {
         </Label>
         <Textarea
           id="description"
+          value={formData.description}
+          onChange={(e) => updateFormData("description", e.target.value)}
           placeholder="Describe your tour in detail..."
           className="rounded-xl min-h-32 text-sm"
           rows={4}
         />
+      </motion.div>
+
+      <motion.div variants={itemVariants} className="space-y-2">
+        <Label htmlFor="category" className="text-sm">
+          Tour Category
+        </Label>
+        <Select value={formData.categoryId} onValueChange={(value) => updateFormData("categoryId", value)}>
+          <SelectTrigger className="rounded-xl">
+            <SelectValue placeholder={categoriesLoading ? "Loading categories..." : "Select category"} />
+          </SelectTrigger>
+          <SelectContent>
+            {categoriesLoading ? (
+              <div className="p-2 text-sm text-gray-500">Loading categories...</div>
+            ) : categories.length === 0 ? (
+              <div className="p-2 text-sm text-gray-500">No categories available. Create one first.</div>
+            ) : (
+              categories.map((category: any) => (
+                <SelectItem key={category.id} value={category.id}>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }} />
+                    <span>{category.name}</span>
+                  </div>
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        {categories.length === 0 && !categoriesLoading && (
+          <p className="text-sm text-red-600">
+            No categories available. Please{" "}
+            <a href="/admin/tours/categories" className="underline">
+              create a category
+            </a>{" "}
+            first.
+          </p>
+        )}
       </motion.div>
 
       <motion.div variants={itemVariants} className="space-y-4">
@@ -948,35 +1141,59 @@ export default function LaunchTour() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm">Current Price</Label>
-                <Input placeholder="e.g., 1299" type="number" className="rounded-xl text-sm" />
+                <Input
+                  placeholder="e.g., 1299"
+                  type="number"
+                  value={formData.currentPrice}
+                  onChange={(e) => updateFormData("currentPrice", e.target.value)}
+                  className="rounded-xl text-sm"
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm">Original Price</Label>
-                <Input placeholder="e.g., 1599" type="number" className="rounded-xl text-sm" />
+                <Input
+                  placeholder="e.g., 1599"
+                  type="number"
+                  value={formData.originalPrice}
+                  onChange={(e) => updateFormData("originalPrice", e.target.value)}
+                  className="rounded-xl text-sm"
+                />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm">Currency</Label>
-                <Select>
+                <Select value={formData.currency} onValueChange={(value) => updateFormData("currency", value)}>
                   <SelectTrigger className="rounded-xl">
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="usd">USD ($)</SelectItem>
-                    <SelectItem value="eur">EUR (€)</SelectItem>
-                    <SelectItem value="gbp">GBP (£)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm">Discount Percentage</Label>
-                <Input placeholder="e.g., 18" type="number" className="rounded-xl text-sm" />
+                <Input
+                  placeholder="e.g., 18"
+                  type="number"
+                  value={formData.discountPercentage}
+                  onChange={(e) => updateFormData("discountPercentage", e.target.value)}
+                  className="rounded-xl text-sm"
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label className="text-sm">Pricing Notes</Label>
-              <Textarea placeholder="Any additional pricing information..." className="rounded-xl text-sm" rows={3} />
+              <Textarea
+                placeholder="Any additional pricing information..."
+                value={formData.pricingNotes}
+                onChange={(e) => updateFormData("pricingNotes", e.target.value)}
+                className="rounded-xl text-sm"
+                rows={3}
+              />
             </div>
           </CardContent>
         </Card>
@@ -1023,10 +1240,19 @@ export default function LaunchTour() {
               <Eye className="h-4 w-4 mr-2" />
               Preview
             </Button>
-            <Button className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg">
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg"
+            >
               <Save className="h-4 w-4 mr-2" />
-              Save & Publish
+              {isSubmitting ? "Creating..." : "Save & Publish"}
             </Button>
+            {submitMessage && (
+              <div className={`mt-2 text-sm ${submitMessage.includes("success") ? "text-green-600" : "text-red-600"}`}>
+                {submitMessage}
+              </div>
+            )}
           </div>
         </div>
 

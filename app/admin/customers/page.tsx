@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ import {
   MoreHorizontal,
   UserPlus,
   TrendingUp,
+  Loader2,
 } from "lucide-react"
 import AdminLayout from "@/components/AdminLayout"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -35,91 +36,73 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 
+interface Customer {
+  id: number
+  name: string
+  email: string
+  phone: string
+  avatar: string
+  location: string
+  joinDate: string
+  totalBookings: number
+  totalSpent: number
+  lastBooking: string | null
+  status: string
+  rating: number
+  preferredCategories: string[]
+}
+
+interface Stats {
+  totalCustomers: number
+  activeCustomers: number
+  vipCustomers: number
+  avgCustomerValue: number
+}
+
 export default function CustomersPage() {
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [stats, setStats] = useState<Stats>({
+    totalCustomers: 0,
+    activeCustomers: 0,
+    vipCustomers: 0,
+    avgCustomerValue: 0,
+  })
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-
   const [viewCustomerId, setViewCustomerId] = useState<number | null>(null)
   const [editCustomerId, setEditCustomerId] = useState<number | null>(null)
   const [addCustomerOpen, setAddCustomerOpen] = useState(false)
 
-  const customers = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      email: "sarah.johnson@email.com",
-      phone: "+1 (555) 123-4567",
-      avatar: "/placeholder.svg?height=40&width=40",
-      location: "New York, USA",
-      joinDate: "2024-01-15",
-      totalBookings: 3,
-      totalSpent: 7890,
-      lastBooking: "2024-03-15",
-      status: "Active",
-      rating: 4.9,
-      preferredCategories: ["Luxury", "Cultural"],
-    },
-    {
-      id: 2,
-      name: "Michael Chen",
-      email: "michael.chen@email.com",
-      phone: "+1 (555) 234-5678",
-      avatar: "/placeholder.svg?height=40&width=40",
-      location: "San Francisco, USA",
-      joinDate: "2024-02-01",
-      totalBookings: 2,
-      totalSpent: 4590,
-      lastBooking: "2024-03-18",
-      status: "Active",
-      rating: 4.8,
-      preferredCategories: ["Adventure", "Nature"],
-    },
-    {
-      id: 3,
-      name: "Emma Wilson",
-      email: "emma.wilson@email.com",
-      phone: "+1 (555) 345-6789",
-      avatar: "/placeholder.svg?height=40&width=40",
-      location: "London, UK",
-      joinDate: "2024-01-20",
-      totalBookings: 1,
-      totalSpent: 799,
-      lastBooking: "2024-03-20",
-      status: "New",
-      rating: 4.7,
-      preferredCategories: ["Cultural", "Food & Culture"],
-    },
-    {
-      id: 4,
-      name: "David Rodriguez",
-      email: "david.rodriguez@email.com",
-      phone: "+1 (555) 456-7890",
-      avatar: "/placeholder.svg?height=40&width=40",
-      location: "Madrid, Spain",
-      joinDate: "2023-11-10",
-      totalBookings: 5,
-      totalSpent: 12450,
-      lastBooking: "2024-03-22",
-      status: "VIP",
-      rating: 4.9,
-      preferredCategories: ["Luxury", "Adventure", "Nature"],
-    },
-    {
-      id: 5,
-      name: "Lisa Thompson",
-      email: "lisa.thompson@email.com",
-      phone: "+1 (555) 567-8901",
-      avatar: "/placeholder.svg?height=40&width=40",
-      location: "Toronto, Canada",
-      joinDate: "2023-12-05",
-      totalBookings: 4,
-      totalSpent: 8990,
-      lastBooking: "2024-02-28",
-      status: "Inactive",
-      rating: 4.6,
-      preferredCategories: ["Food & Culture", "Wellness"],
-    },
-  ]
+  // Fetch customers data
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (searchTerm) params.append("search", searchTerm)
+      if (statusFilter !== "all") params.append("status", statusFilter)
+
+      const response = await fetch(`/api/customers?${params.toString()}`, {
+        credentials: "include",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch customers")
+      }
+
+      const data = await response.json()
+      setCustomers(data.customers)
+      setStats(data.stats)
+    } catch (error) {
+      console.error("Error fetching customers:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCustomers()
+  }, [searchTerm, statusFilter])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -136,15 +119,41 @@ export default function CustomersPage() {
     }
   }
 
-  const filteredCustomers = customers.filter((customer) => {
-    const matchesSearch =
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.location.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || customer.status.toLowerCase() === statusFilter
+  const exportCustomers = () => {
+    const csvContent = [
+      ["Name", "Email", "Phone", "Location", "Status", "Total Bookings", "Total Spent", "Join Date"],
+      ...customers.map((customer) => [
+        customer.name,
+        customer.email,
+        customer.phone,
+        customer.location,
+        customer.status,
+        customer.totalBookings.toString(),
+        customer.totalSpent.toString(),
+        customer.joinDate,
+      ]),
+    ]
+      .map((row) => row.join(","))
+      .join("\n")
 
-    return matchesSearch && matchesStatus
-  })
+    const blob = new Blob([csvContent], { type: "text/csv" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "customers.csv"
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+        </div>
+      </AdminLayout>
+    )
+  }
 
   return (
     <AdminLayout>
@@ -156,7 +165,7 @@ export default function CustomersPage() {
             <p className="mt-1 text-sm text-gray-500">Manage customer relationships and track their journey.</p>
           </div>
           <div className="mt-4 flex space-x-3 md:ml-4 md:mt-0">
-            <Button variant="outline" className="rounded-lg">
+            <Button variant="outline" className="rounded-lg" onClick={exportCustomers}>
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -175,28 +184,28 @@ export default function CustomersPage() {
           {[
             {
               title: "Total Customers",
-              value: customers.length,
+              value: stats.totalCustomers,
               icon: Users,
               color: "from-blue-500 to-blue-600",
               change: "+12%",
             },
             {
               title: "Active Customers",
-              value: customers.filter((c) => c.status === "Active").length,
+              value: stats.activeCustomers,
               icon: TrendingUp,
               color: "from-green-500 to-green-600",
               change: "+8%",
             },
             {
               title: "VIP Customers",
-              value: customers.filter((c) => c.status === "VIP").length,
+              value: stats.vipCustomers,
               icon: Star,
               color: "from-purple-500 to-purple-600",
               change: "+15%",
             },
             {
               title: "Avg. Customer Value",
-              value: `$${Math.round(customers.reduce((sum, c) => sum + c.totalSpent, 0) / customers.length).toLocaleString()}`,
+              value: `$${stats.avgCustomerValue.toLocaleString()}`,
               icon: TrendingUp,
               color: "from-orange-500 to-orange-600",
               change: "+18%",
@@ -267,7 +276,7 @@ export default function CustomersPage() {
 
         {/* Customers List */}
         <div className="space-y-4">
-          {filteredCustomers.map((customer, index) => (
+          {customers.map((customer, index) => (
             <motion.div
               key={customer.id}
               initial={{ opacity: 0, y: 20 }}
@@ -303,10 +312,12 @@ export default function CustomersPage() {
                               <Mail className="h-4 w-4 mr-2" />
                               {customer.email}
                             </div>
-                            <div className="flex items-center">
-                              <Phone className="h-4 w-4 mr-2" />
-                              {customer.phone}
-                            </div>
+                            {customer.phone && (
+                              <div className="flex items-center">
+                                <Phone className="h-4 w-4 mr-2" />
+                                {customer.phone}
+                              </div>
+                            )}
                             <div className="flex items-center">
                               <MapPin className="h-4 w-4 mr-2" />
                               {customer.location}
@@ -331,7 +342,7 @@ export default function CustomersPage() {
                           <p className="text-sm text-gray-600">Rating</p>
                           <div className="flex items-center">
                             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                            <span className="font-medium">{customer.rating}</span>
+                            <span className="font-medium">{customer.rating.toFixed(1)}</span>
                           </div>
                         </div>
                         <div>
@@ -342,23 +353,31 @@ export default function CustomersPage() {
                     </div>
 
                     {/* Preferences */}
-                    <div className="lg:col-span-4">
+                    <div className="lg:col-span-3">
                       <div className="space-y-3">
                         <div>
                           <p className="text-sm text-gray-600 mb-2">Preferred Categories</p>
                           <div className="flex flex-wrap gap-2">
-                            {customer.preferredCategories.map((category, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs">
-                                {category}
-                              </Badge>
-                            ))}
+                            {customer.preferredCategories.length > 0 ? (
+                              customer.preferredCategories.map((category, i) => (
+                                <Badge key={i} variant="secondary" className="text-xs">
+                                  {category}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-gray-400">No preferences yet</span>
+                            )}
                           </div>
                         </div>
                         <div>
                           <p className="text-sm text-gray-600">Last Booking</p>
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                            <span className="text-sm">{new Date(customer.lastBooking).toLocaleDateString()}</span>
+                            <span className="text-sm">
+                              {customer.lastBooking
+                                ? new Date(customer.lastBooking).toLocaleDateString()
+                                : "No bookings yet"}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -383,9 +402,7 @@ export default function CustomersPage() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" className="rounded-lg">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                       
                       </div>
                     </div>
                   </div>
@@ -396,14 +413,19 @@ export default function CustomersPage() {
         </div>
 
         {/* Empty State */}
-        {filteredCustomers.length === 0 && (
+        {customers.length === 0 && !loading && (
           <div className="text-center py-12">
             <Users className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-semibold text-gray-900">No customers found</h3>
-            <p className="mt-1 text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
+            <p className="mt-1 text-sm text-gray-500">
+              {searchTerm || statusFilter !== "all"
+                ? "Try adjusting your search or filter criteria."
+                : "No customers have booked tours yet."}
+            </p>
           </div>
         )}
       </div>
+
       {/* View Customer Modal */}
       {viewCustomerId && (
         <Dialog open={!!viewCustomerId} onOpenChange={() => setViewCustomerId(null)}>
@@ -438,7 +460,7 @@ export default function CustomersPage() {
                       </div>
                       <div>
                         <Label>Phone</Label>
-                        <p className="text-sm text-gray-600">{customer.phone}</p>
+                        <p className="text-sm text-gray-600">{customer.phone || "Not provided"}</p>
                       </div>
                       <div>
                         <Label>Location</Label>
@@ -447,6 +469,14 @@ export default function CustomersPage() {
                       <div>
                         <Label>Total Bookings</Label>
                         <p className="text-sm text-gray-600">{customer.totalBookings}</p>
+                      </div>
+                      <div>
+                        <Label>Total Spent</Label>
+                        <p className="text-sm text-gray-600">${customer.totalSpent.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <Label>Member Since</Label>
+                        <p className="text-sm text-gray-600">{new Date(customer.joinDate).toLocaleDateString()}</p>
                       </div>
                     </div>
                   </div>

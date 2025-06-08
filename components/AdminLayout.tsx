@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -43,9 +42,37 @@ interface AdminLayoutProps {
   children: React.ReactNode
 }
 
+
+
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
+  const userName= "Afnan Ahad"
+  const userEmail = "afnanahhad@gmail.com"
+
+
+  const logout = ()=>{
+    
+    try {
+      fetch("/api/auth/logout", {
+        method: "POST",
+    })
+    .then((res) => {
+      if (res.ok) {
+        localStorage.removeItem("auth_token")
+        localStorage.removeItem("user_data")
+        sessionStorage.removeItem("auth_token")
+        document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
+        window.location.href = "/auth/login"
+      } else {
+        throw new Error("Logout failed")
+      }})
+    } catch (error) {
+      console.log(error);
+      
+    }
+  }
+
 
   const navigation = [
     {
@@ -62,6 +89,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       children: [
         { name: "All Tours", href: "/admin/tours" },
         { name: "Launch Tour", href: "/admin/launch-tour" },
+        { name: "Spots", href: "/admin/tours/spots" },
         { name: "Categories", href: "/admin/tours/categories" },
       ],
     },
@@ -256,8 +284,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">Admin User</p>
-                      <p className="text-xs leading-none text-muted-foreground">admin@ecowander.com</p>
+                      <p className="text-sm font-medium leading-none">{userName}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -278,7 +306,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     <Home className="mr-2 h-4 w-4" />
                     <span>Back to Website</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-red-600">
+                  <DropdownMenuItem onClick={logout} className="text-red-600">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Log out</span>
                   </DropdownMenuItem>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -25,72 +25,149 @@ export default function CategoriesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editCategoryId, setEditCategoryId] = useState<number | null>(null)
   const [deleteCategoryId, setDeleteCategoryId] = useState<number | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const categories = [
-    {
-      id: 1,
-      name: "Adventure",
-      description: "Thrilling outdoor activities and extreme sports",
-      color: "#F59E0B",
-      tourCount: 24,
-      totalBookings: 156,
-      revenue: 89500,
-      isActive: true,
-    },
-    {
-      id: 2,
-      name: "Luxury",
-      description: "Premium experiences with high-end accommodations",
-      color: "#8B5CF6",
-      tourCount: 12,
-      totalBookings: 89,
-      revenue: 145000,
-      isActive: true,
-    },
-    {
-      id: 3,
-      name: "Cultural",
-      description: "Immersive cultural experiences and heritage tours",
-      color: "#EF4444",
-      tourCount: 18,
-      totalBookings: 134,
-      revenue: 67800,
-      isActive: true,
-    },
-    {
-      id: 4,
-      name: "Nature",
-      description: "Wildlife and natural landscape exploration",
-      color: "#10B981",
-      tourCount: 15,
-      totalBookings: 98,
-      revenue: 78900,
-      isActive: true,
-    },
-    {
-      id: 5,
-      name: "Food & Culture",
-      description: "Culinary adventures and local food experiences",
-      color: "#F97316",
-      tourCount: 8,
-      totalBookings: 45,
-      revenue: 34500,
-      isActive: true,
-    },
-    {
-      id: 6,
-      name: "Wellness",
-      description: "Relaxation and wellness-focused retreats",
-      color: "#06B6D4",
-      tourCount: 6,
-      totalBookings: 32,
-      revenue: 28900,
-      isActive: false,
-    },
-  ]
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  // Form data for creating/editing categories
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    color: "#10B981",
+  })
+
+  useEffect(() => {
+    fetchCategories()
+  }, [searchTerm])
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({
+        search: searchTerm,
+      })
+
+      const response = await fetch(`/api/categories?${params}`, {
+        credentials: "include",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories)
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateCategory = async () => {
+    if (!formData.name || !formData.description) {
+      alert("Please fill in all required fields")
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch("/api/categories", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(formData),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setCategories([...categories, result.category])
+        setIsDialogOpen(false)
+        setFormData({ name: "", description: "", color: "#10B981" })
+        alert("Category created successfully!")
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to create category")
+      }
+    } catch (error) {
+      console.error("Error creating category:", error)
+      alert("Failed to create category")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleEditCategory = async () => {
+    if (!formData.name || !formData.description) {
+      alert("Please fill in all required fields")
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/categories/${editCategoryId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(formData),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setCategories(categories.map((cat: any) => (cat.id === editCategoryId ? result.category : cat)))
+        setEditCategoryId(null)
+        setFormData({ name: "", description: "", color: "#10B981" })
+        alert("Category updated successfully!")
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to update category")
+      }
+    } catch (error) {
+      console.error("Error updating category:", error)
+      alert("Failed to update category")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteCategory = async () => {
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/categories/${deleteCategoryId}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+
+      if (response.ok) {
+        setCategories(categories.filter((cat: any) => cat.id !== deleteCategoryId))
+        setDeleteCategoryId(null)
+        alert("Category deleted successfully!")
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to delete category")
+      }
+    } catch (error) {
+      console.error("Error deleting category:", error)
+      alert("Failed to delete category")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const openEditDialog = (category: any) => {
+    setFormData({
+      name: category.name,
+      description: category.description,
+      color: category.color,
+    })
+    setEditCategoryId(category.id)
+  }
 
   const filteredCategories = categories.filter(
-    (category) =>
+    (category: any) =>
       category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       category.description.toLowerCase().includes(searchTerm.toLowerCase()),
   )
@@ -122,24 +199,47 @@ export default function CategoriesPage() {
                     <Label htmlFor="name" className="text-right">
                       Name
                     </Label>
-                    <Input id="name" placeholder="Category name" className="col-span-3" />
+                    <Input
+                      id="name"
+                      placeholder="Category name"
+                      className="col-span-3"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="description" className="text-right">
                       Description
                     </Label>
-                    <Textarea id="description" placeholder="Category description" className="col-span-3" />
+                    <Textarea
+                      id="description"
+                      placeholder="Category description"
+                      className="col-span-3"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="color" className="text-right">
                       Color
                     </Label>
-                    <Input id="color" type="color" defaultValue="#10B981" className="col-span-3 h-10" />
+                    <Input
+                      id="color"
+                      type="color"
+                      className="col-span-3 h-10"
+                      value={formData.color}
+                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" className="bg-green-600 hover:bg-green-700">
-                    Create Category
+                  <Button
+                    type="submit"
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={handleCreateCategory}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Creating..." : "Create Category"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -164,70 +264,80 @@ export default function CategoriesPage() {
 
         {/* Categories Grid */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCategories.map((category, index) => (
-            <motion.div
-              key={category.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
-            >
-              <Card className="border-2 border-gray-200 hover:border-gray-300 transition-all duration-300 hover:shadow-lg">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
-                      <CardTitle className="text-lg">{category.name}</CardTitle>
+          {loading ? (
+            <div className="col-span-full text-center py-8">Loading categories...</div>
+          ) : filteredCategories.length === 0 ? (
+            <div className="col-span-full text-center py-8">
+              <p className="text-gray-500">No categories found. Create your first category to get started!</p>
+            </div>
+          ) : (
+            filteredCategories.map((category: any, index) => (
+              <motion.div
+                key={category.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+              >
+                <Card className="border-2 border-gray-200 hover:border-gray-300 transition-all duration-300 hover:shadow-lg">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
+                        <CardTitle className="text-lg">{category.name}</CardTitle>
+                      </div>
+                      <Badge variant={category.isActive ? "outline" : "secondary"} className="rounded-full">
+                        {category.isActive ? "Active" : "Inactive"}
+                      </Badge>
                     </div>
-                    <Badge variant={category.isActive ? "default" : "secondary"} className="rounded-full">
-                      {category.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-gray-600 mt-2">{category.description}</p>
-                </CardHeader>
+                    <p className="text-sm text-gray-600 mt-2">{category.description}</p>
+                  </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">{category.tourCount}</div>
-                      <div className="text-xs text-gray-500">Tours</div>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-2xl font-bold text-gray-900">{category.tourCount}</div>
+                        <div className="text-xs text-gray-500">Tours</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-gray-900">{category.totalBookings}</div>
+                        <div className="text-xs text-gray-500">Bookings</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">
+                          ${(category.revenue / 1000).toFixed(0)}k
+                        </div>
+                        <div className="text-xs text-gray-500">Revenue</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">{category.totalBookings}</div>
-                      <div className="text-xs text-gray-500">Bookings</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-green-600">${(category.revenue / 1000).toFixed(0)}k</div>
-                      <div className="text-xs text-gray-500">Revenue</div>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" className="flex-1 rounded-lg">
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Tours
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 rounded-lg"
-                      onClick={() => setEditCategoryId(category.id)}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700 rounded-lg"
-                      onClick={() => setDeleteCategoryId(category.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                    <div className="flex items-center space-x-2">
+                      <Button variant="outline" size="sm" className="flex-1 rounded-lg">
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Tours
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 rounded-lg"
+                        onClick={() => openEditDialog(category)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 rounded-lg"
+                        onClick={() => setDeleteCategoryId(category.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          )}
         </div>
 
         {/* Stats Overview */}
@@ -251,7 +361,9 @@ export default function CategoriesPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-600 text-sm font-medium">Active Categories</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{categories.filter((c) => c.isActive).length}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    {categories.filter((c: any) => c.isActive).length}
+                  </p>
                 </div>
                 <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-full p-3">
                   <TrendingUp className="h-6 w-6 text-white" />
@@ -266,7 +378,7 @@ export default function CategoriesPage() {
                 <div>
                   <p className="text-gray-600 text-sm font-medium">Total Tours</p>
                   <p className="text-2xl font-bold text-gray-900 mt-1">
-                    {categories.reduce((sum, cat) => sum + cat.tourCount, 0)}
+                    {categories.reduce((sum: number, cat: any) => sum + cat.tourCount, 0)}
                   </p>
                 </div>
                 <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-full p-3">
@@ -282,7 +394,7 @@ export default function CategoriesPage() {
                 <div>
                   <p className="text-gray-600 text-sm font-medium">Total Revenue</p>
                   <p className="text-2xl font-bold text-gray-900 mt-1">
-                    ${(categories.reduce((sum, cat) => sum + cat.revenue, 0) / 1000).toFixed(0)}k
+                    ${(categories.reduce((sum: number, cat: any) => sum + cat.revenue, 0) / 1000).toFixed(0)}k
                   </p>
                 </div>
                 <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-full p-3">
@@ -308,8 +420,9 @@ export default function CategoriesPage() {
                   </Label>
                   <Input
                     id="edit-name"
-                    defaultValue={categories.find((c) => c.id === editCategoryId)?.name}
                     className="col-span-3"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -318,8 +431,9 @@ export default function CategoriesPage() {
                   </Label>
                   <Textarea
                     id="edit-description"
-                    defaultValue={categories.find((c) => c.id === editCategoryId)?.description}
                     className="col-span-3"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -329,8 +443,9 @@ export default function CategoriesPage() {
                   <Input
                     id="edit-color"
                     type="color"
-                    defaultValue={categories.find((c) => c.id === editCategoryId)?.color}
                     className="col-span-3 h-10"
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                   />
                 </div>
               </div>
@@ -338,7 +453,13 @@ export default function CategoriesPage() {
                 <Button variant="outline" onClick={() => setEditCategoryId(null)}>
                   Cancel
                 </Button>
-                <Button className="bg-green-600 hover:bg-green-700">Save Changes</Button>
+                <Button
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={handleEditCategory}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Saving..." : "Save Changes"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -351,15 +472,17 @@ export default function CategoriesPage() {
               <DialogHeader>
                 <DialogTitle>Delete Category</DialogTitle>
                 <DialogDescription>
-                  Are you sure you want to delete "{categories.find((c) => c.id === deleteCategoryId)?.name}"? This will
-                  affect all tours in this category.
+                  Are you sure you want to delete "{categories.find((c: any) => c.id === deleteCategoryId)?.name}"? This
+                  will affect all tours in this category.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDeleteCategoryId(null)}>
                   Cancel
                 </Button>
-                <Button variant="destructive">Delete Category</Button>
+                <Button variant="destructive" onClick={handleDeleteCategory} disabled={isSubmitting}>
+                  {isSubmitting ? "Deleting..." : "Delete Category"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
