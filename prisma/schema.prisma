@@ -117,7 +117,7 @@ model User {
   name      String
   phone     String?
   avatar    String?
-  role      UserRole   @default(CUSTOMER)
+  role      UserRole   @default(OPERATOR)
   status    UserStatus @default(PENDING_VERIFICATION)
   lastLogin DateTime?
   createdAt DateTime   @default(now())
@@ -125,11 +125,27 @@ model User {
 
   // Relations
   operator TourOperator?
+
+  @@map("users")
+}
+
+model CustomerUser{
+  id String @id @default(cuid())
+  email     String     @unique
+  password  String
+  name      String
+  phone     String?
+  avatar    String?
+  lastLogin DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
   bookings Booking[]
   reviews  Review[]
   payments Payment[]
 
-  @@map("users")
+  @@map("customer_users")
 }
 
 model TourOperator {
@@ -323,7 +339,7 @@ model Booking {
   updatedAt      DateTime      @updatedAt
 
   // Relations
-  customer  User       @relation(fields: [customerId], references: [id])
+  customer  CustomerUser       @relation(fields: [customerId], references: [id])
   tour      Tour       @relation(fields: [tourId], references: [id])
   spot      Spot?      @relation(fields: [spotId], references: [id])
   travelers Traveler[]
@@ -371,7 +387,7 @@ model Payment {
 
   // Relations
   booking  Booking @relation(fields: [bookingId], references: [id])
-  customer User    @relation(fields: [customerId], references: [id])
+  customer CustomerUser    @relation(fields: [customerId], references: [id])
 
   @@map("payments")
 }
@@ -392,7 +408,7 @@ model Review {
   updatedAt        DateTime @updatedAt
 
   // Relations
-  customer User @relation(fields: [customerId], references: [id])
+  customer CustomerUser @relation(fields: [customerId], references: [id])
   tour     Tour @relation(fields: [tourId], references: [id])
 
   @@map("reviews")
