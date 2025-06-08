@@ -17,11 +17,12 @@ export async function POST(request: NextRequest) {
       phone,
       role = "OPERATOR",
       companyName,
-      companyDescription,
-      companyAddress,
-      companyCity,
-      companyCountry,
-      companyWebsite,
+      description,
+      address,
+      city, 
+      country,
+      website,
+      companyPhone,
       businessLicense,
       experience,
       specializations = [],
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email, password, and name are required" }, { status: 400 })
     }
 
-    if (role === "OPERATOR" && (!companyName || !companyDescription || !companyAddress)) {
+    if (role === "OPERATOR" && (!companyName || !description || !address)) {
       return NextResponse.json(
         {
           error: "Company name, description, and address are required for operators",
@@ -53,7 +54,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email already exists" }, { status: 409 })
     }
 
-    console.log({name,email})
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
@@ -81,11 +81,12 @@ export async function POST(request: NextRequest) {
     await prisma.tourOperator.create({
        data:{
             companyName,
-            companyDescription,
-            companyWebsite,
-            companyAddress,
-            companyCity,
-            companyCountry,
+            companyDescription:description,
+            companyWebsite:website,
+            companyAddress:address,
+            companyCity:city,
+            companyCountry:country,
+            
             specializations: specializations || [],
             languages: languages || [],
             userId:user.id
@@ -103,7 +104,6 @@ export async function POST(request: NextRequest) {
       { expiresIn: "7d" },
     )
 
-    // Return user data without password
     
  
  
