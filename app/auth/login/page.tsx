@@ -39,7 +39,7 @@ export default function LoginPage() {
           password: formData.password,
           rememberMe: formData.rememberMe,
         }),
-        credentials: "include", // Important for cookies
+        credentials: "include", // CRITICAL: This ensures cookies are sent/received
       })
 
       const data = await response.json()
@@ -61,12 +61,9 @@ export default function LoginPage() {
       // Store user data in localStorage for client-side access
       localStorage.setItem("user_data", JSON.stringify(data.user))
 
-      // Redirect based on role
-      if (data.user.role === "OPERATOR") {
-        router.push("/admin")
-      } else {
-        router.push("/")
-      }
+      // The auth-token cookie is automatically set by the server response
+      // Force a page reload to ensure middleware picks up the cookie
+      window.location.href = data.user.role === "OPERATOR" ? "/admin" : "/"
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.")
     } finally {

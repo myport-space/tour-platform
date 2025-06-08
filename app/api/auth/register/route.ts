@@ -11,24 +11,35 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {
-      name,
       email,
       password,
+      name,
       phone,
+      role = "OPERATOR",
       companyName,
-      description,
-      website,
-      address,
-      city,
-      country,
+      companyDescription,
+      companyAddress,
+      companyCity,
+      companyCountry,
+      companyWebsite,
+      businessLicense,
+      experience,
       specializations = [],
       languages = [],
-      rememberMe = false,
     } = body
 
     // Validate required fields
-    if (!name || !email || !password || !phone) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!email || !password || !name) {
+      return NextResponse.json({ error: "Email, password, and name are required" }, { status: 400 })
+    }
+
+    if (role === "OPERATOR" && (!companyName || !companyDescription || !companyAddress)) {
+      return NextResponse.json(
+        {
+          error: "Company name, description, and address are required for operators",
+        },
+        { status: 400 },
+      )
     }
 
     // Check if user already exists
@@ -39,7 +50,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingUser) {
-      return NextResponse.json({ error: "User already exists with this email" }, { status: 400 })
+      return NextResponse.json({ error: "Email already exists" }, { status: 409 })
     }
 
     console.log({name,email})
@@ -47,39 +58,37 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create user
-    const user = await prisma.user.create({
-       data:{
-        name,
-        email,
-        password: hashedPassword,
-        phone,
-        role: "OPERATOR",
-        status: "ACTIVE", 
-       },
-       select:{
-        id:true,
-        email:true,
-        phone:true,
-        role:true,
-        status:true
-       }
-    }) 
+    // Prepare user data
+    const userData = {
+      email,
+      password: hashedPassword,
+      name,
+      phone,
+      role: "OPERATOR" as const,
+      status: "ACTIVE" as const,
+    }
 
-    // Create a operator for the user
-    await prisma.tourOperator.create({
-       data:{
-            companyName,
-            companyDescription:description,
-            companyWebsite:website,
-            companyAddress:address,
-            companyCity:city,
-            companyCountry:country,
-            specializations: specializations || [],
-            languages: languages || [],
-            userId:user.id
-       }
-    })
+    // Prepare operator data if provided
+    let result
+    if (companyName && description) {
+      const operatorData = {
+        companyName,
+        companyDescription: description,
+        companyAddress: address || "",
+        companyCity: city || "",
+        companyCountry: country || "",
+        companyWebsite: website || null,
+        specializations,
+        languages,
+        isVerified: false,
+        rating: 0,
+        totalReviews: 0,
+      }
+
+      result = await db.createUserWithOperator(userData, operatorData)
+    } else {
+      result = { user: await db.createUser(userData), operator: null }
+    }
 
     // Generate JWT token
     const token = jwt.sign(
@@ -101,23 +110,18 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({
       message: "User created successfully",
-      user: user
+      user: {
+        ...userWithoutPassword,
+        operator: result.operator,
+      },
     })
 
     // Set token cookie
-    setTokenCookie(response, token, rememberMe)
+    setTokenCookie(response, token, false)
 
     return response
   } catch (error) {
     console.error("Registration error:", error)
-
-    // Handle specific errors
-    if (error instanceof Error) {
-      if (error.message.includes("Unique constraint") || error.message.includes("already exists")) {
-        return NextResponse.json({ error: "Email already exists" }, { status: 400 })
-      }
-    }
-
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -20,6 +20,7 @@ export async function middleware(request: NextRequest,response: NextResponse) {
       
  
   if (!token) {
+    console.log("No token found, redirecting to login")
     // Redirect to login if no token
     console.log("No token");
     
@@ -33,11 +34,15 @@ export async function middleware(request: NextRequest,response: NextResponse) {
     // Verify the token
 
     if (!payload) {
+      console.log("Invalid token payload")
       throw new Error("Invalid token")
     }
 
+    console.log("Token verified for user:", payload.email, "Role:", payload.role)
+
     // Check if user is trying to access admin routes
     if (pathname.startsWith("/admin") && payload.role !== "OPERATOR") {
+      console.log("User not authorized for admin routes")
       return NextResponse.redirect(new URL("/", request.url))
     }
 

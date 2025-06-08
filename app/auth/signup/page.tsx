@@ -138,11 +138,13 @@ export default function SignupPage() {
         throw new Error(data.error || "Registration failed")
       }
 
+      console.log("Registration successful, token received:", !!data.token)
+
       // Store user data in localStorage for client-side access
       localStorage.setItem("user_data", JSON.stringify(data.user))
 
-      // Redirect to admin dashboard
-      router.push("/admin")
+      // Force a page reload to ensure middleware picks up the cookie
+      window.location.href = "/admin"
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.")
     } finally {
