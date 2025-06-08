@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { jwtVerify } from "jose"
 
-export async function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest,response: NextResponse) {
   const { pathname } = request.nextUrl
 
   // Public routes that don't require authentication
@@ -16,8 +16,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // For protected routes, check authentication
-  const token = request.cookies.get("auth_token")?.value || request.headers.get("authorization")?.replace("Bearer ", "")
+  const token = request.cookies.get("auth-token")?.value || request.headers.get("authorization")?.replace("Bearer ", "")
       
+ 
   if (!token) {
     // Redirect to login if no token
     console.log("No token");
@@ -29,6 +30,11 @@ export async function middleware(request: NextRequest) {
     // Verify the token using jose (Edge-compatible)
     const secret = new TextEncoder().encode(process.env.JWT_SECRET!)
     const { payload } = await jwtVerify(token, secret)
+    // Verify the token
+
+    if (!payload) {
+      throw new Error("Invalid token")
+    }
 
     // Check if user is trying to access admin routes
     if (pathname.startsWith("/admin") && payload.role !== "OPERATOR") {
@@ -39,13 +45,16 @@ export async function middleware(request: NextRequest) {
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set("x-user-id", String(payload.userId))
     requestHeaders.set("x-user-role", String(payload.role))
+    requestHeaders.set("x-user-email", String(payload.email))
 
     return NextResponse.next({
       request: {
         headers: requestHeaders,
       },
     })
+
   } catch (error) {
+    console.error("Middleware auth error:", error)
     // Invalid token, redirect to login
     console.log(error);
     

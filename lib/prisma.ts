@@ -1,41 +1,28 @@
-// Import necessary modules and initialize Prisma client
 import { PrismaClient } from "@prisma/client"
 
+// Create a singleton instance of PrismaClient
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+// Initialize Prisma client with proper error handling
+let prisma: PrismaClient
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
+try {
+  prisma =
+    globalForPrisma.prisma ??
+    new PrismaClient({
+      log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    })
 
-// Mock Prisma client for deployment
-// This is a temporary solution until we properly set up Prisma
-
-prisma.user = {
-  findUnique: async () => null,
-  findFirst: async () => null,
-  create: async () => ({ id: "mock-id", name: "Mock User" }),
-  update: async () => ({ id: "mock-id", name: "Mock User" }),
+  if (process.env.NODE_ENV !== "production") {
+    globalForPrisma.prisma = prisma
+  }
+} catch (error) {
+  console.error("Failed to initialize Prisma client:", error)
+  // Create a fallback client for build time
+  prisma = {} as PrismaClient
 }
 
-prisma.tour = {
-  findMany: async () => [],
-  findUnique: async () => null,
-  create: async () => ({ id: "mock-id", title: "Mock Tour" }),
-  update: async () => ({ id: "mock-id", title: "Mock Tour" }),
-}
-
-prisma.booking = {
-  findMany: async () => [],
-  findUnique: async () => null,
-  create: async () => ({ id: "mock-id" }),
-  update: async () => ({ id: "mock-id" }),
-}
-
-prisma.spot = {
-  findMany: async () => [],
-  create: async () => ({ id: "mock-id" }),
-}
-
-// Add other mock models as needed
+export { prisma }
+export default prisma

@@ -1,14 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import jwt from "jsonwebtoken"
 import { PrismaClient } from "@prisma/client"
 
 const prisma  = new PrismaClient()
+import { signToken, setTokenCookie } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password, rememberMe } = body
+    const { email, password, rememberMe = false } = body
+
+    // Validate required fields
+    if (!email || !password) {
+      return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
+    }
 
     // Find user by email
     const user = await prisma.user.findUnique({
@@ -16,8 +21,14 @@ export async function POST(request: NextRequest) {
         email,
       }, 
     })
+ 
     if (!user) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
+    }
+
+    // Check if user is active
+    if (user.status !== "ACTIVE") {
+      return NextResponse.json({ error: "Account is not active" }, { status: 401 })
     }
 
     // Verify password
@@ -26,26 +37,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
 
-    // Generate JWT token
-    const tokenExpiry = rememberMe ? "30d" : "1d"
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: tokenExpiry },
-    )
+    // Update last login time
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: user.lastLogin },
+    })
 
-    // Return user data without password
+    // Generate JWT token
+    const token = await signToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    })
+
+    // Create response with user data (excluding password)
     const { password: _, ...userWithoutPassword } = user
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       message: "Login successful",
-      token,
       user: userWithoutPassword,
     })
+
+    // Set token cookie
+    setTokenCookie(response, token, rememberMe)
+
+    return response
   } catch (error) {
     console.error("Login error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

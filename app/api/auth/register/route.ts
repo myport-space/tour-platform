@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken" 
 import { PrismaClient } from "@prisma/client"
-import { Turret_Road } from "next/font/google"
+import { setTokenCookie } from "@/lib/auth"
 
 const prisma = new PrismaClient()
  
@@ -21,9 +21,15 @@ export async function POST(request: NextRequest) {
       address,
       city,
       country,
-      specializations,
-      languages,
+      specializations = [],
+      languages = [],
+      rememberMe = false,
     } = body
+
+    // Validate required fields
+    if (!name || !email || !password || !phone) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -88,14 +94,30 @@ export async function POST(request: NextRequest) {
 
     // Return user data without password
     
+ 
+ 
 
-    return NextResponse.json({
+    // Create response with user data (excluding password) 
+
+    const response = NextResponse.json({
       message: "User created successfully",
-      token,
-      user: user,
+      user: user
     })
+
+    // Set token cookie
+    setTokenCookie(response, token, rememberMe)
+
+    return response
   } catch (error) {
     console.error("Registration error:", error)
+
+    // Handle specific errors
+    if (error instanceof Error) {
+      if (error.message.includes("Unique constraint") || error.message.includes("already exists")) {
+        return NextResponse.json({ error: "Email already exists" }, { status: 400 })
+      }
+    }
+
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

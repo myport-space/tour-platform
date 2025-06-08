@@ -1,49 +1,50 @@
-import type { NextRequest } from "next/server"
-import jwt from "jsonwebtoken"
+import { SignJWT, jwtVerify } from "jose"
+import type { NextResponse } from "next/server"
 
-export interface AuthUser {
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "your-fallback-secret-key")
+
+export interface TokenPayload {
   id: string
   email: string
   role: string
 }
 
-export async function verifyAuth(request: NextRequest): Promise<AuthUser | null> {
+export async function signToken(payload: TokenPayload): Promise<string> {
+  return await new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("7d")
+    .sign(JWT_SECRET)
+}
+
+export async function verifyToken(token: string): Promise<TokenPayload | null> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
-
-    if (!token) {
-      return null
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-    return decoded
+    const { payload } = await jwtVerify(token, JWT_SECRET)
+    return payload as TokenPayload
   } catch (error) {
+    console.error("Token verification failed:", error)
     return null
   }
 }
 
-export function requireAuth(handler: Function) {
-  return async (request: NextRequest, context: any) => {
-    const user = await verifyAuth(request)
+export function setTokenCookie(response: NextResponse, token: string, rememberMe = false) {
+  const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60 // 30 days or 7 days
 
-    if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    return handler(request, context, user)
-  }
+  response.cookies.set("auth-token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge,
+    path: "/",
+  })
 }
 
-export function requireRole(roles: string[]) {
-  return (handler: Function) => {
-    return async (request: NextRequest, context: any) => {
-      const user = await verifyAuth(request)
-
-      if (!user || !roles.includes(user.role)) {
-        return Response.json({ error: "Forbidden" }, { status: 403 })
-      }
-
-      return handler(request, context, user)
-    }
-  }
+export function clearTokenCookie(response: NextResponse) {
+  response.cookies.set("auth-token", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  })
 }
