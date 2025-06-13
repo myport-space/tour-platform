@@ -456,7 +456,7 @@ model Booking {
   tour      Tour       @relation(fields: [tourId], references: [id])
   spot      Spot?      @relation(fields: [spotId], references: [id])
   travelers Traveler[]
-  payments  Payment[]
+  payments  Payment?
 
   @@map("bookings")
 }
@@ -493,7 +493,7 @@ model Payment {
   paymentIntentId String?
   description     String?
   metadata        Json?
-  bookingId       String
+  bookingId       String @unique
   customerId      String
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt

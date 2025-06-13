@@ -28,6 +28,7 @@ interface Booking {
   totalAmount: number
   paidAmount: number
   status: string
+  paymentStatus: any
   bookingDate: string
   departureDate: string
   specialRequests: string | null
@@ -110,9 +111,9 @@ export default function BookingsPage() {
 
   const getPaymentStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case "paid":
+      case "completed":
         return "bg-green-100 text-green-800 border-green-200"
-      case "partial":
+      case "partial_refunded":
         return "bg-yellow-100 text-yellow-800 border-yellow-200"
       case "pending":
         return "bg-orange-100 text-orange-800 border-orange-200"
@@ -135,6 +136,7 @@ export default function BookingsPage() {
         "Total Amount",
         "Paid Amount",
         "Status",
+        "Payment Status",
         "Booking Date",
         "Departure Date",
       ],
@@ -147,6 +149,7 @@ export default function BookingsPage() {
         booking.totalAmount,
         booking.paidAmount,
         booking.status,
+        booking.paymentStatus,
         booking.bookingDate,
         booking.departureDate,
       ]),
@@ -368,17 +371,24 @@ export default function BookingsPage() {
 
                     {/* Payment Info */}
                     <div className="lg:col-span-2">
-                      <div className="">
+                      <div className="space-y-2">
                           <span className="text-sm text-gray-700 font-semibold">Payment</span>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600">Total Amount :</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Total Amount:</span>
                           <span className="font-semibold">${booking.totalAmount.toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600">Paid Amount :</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Paid Amount:</span>
                           <span className="font-semibold text-green-600">${booking.paidAmount.toLocaleString()}</span>
                         </div>
-                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Status:</span>
+                          <Badge
+                            className={`${getPaymentStatusColor(booking.paymentStatus)} border rounded-full px-2 py-1 text-xs`}
+                          >
+                            {booking.paymentStatus}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
 

@@ -17,9 +17,21 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
     
+
+    
     const body = await request.json()
     let { status} = body
+    
     status = status.toUpperCase()
+    switch (status) {
+      case "COMPLETED":
+        return NextResponse.json({ error: "Cannot update status of the completed tour" }, { status: 400 })
+      
+      case "CANCELLED":
+        return NextResponse.json({error:"Cannot update stuatus of Cancelled tour"},{status:400})
+      default:
+        break;
+    }
     await prisma.tour.update({
         where:{
             id:params.id,

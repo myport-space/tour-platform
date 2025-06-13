@@ -324,7 +324,7 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-2">Payment Status</p>
-                  <Badge className={getPaymentStatusColor(booking.paymentStatus||"Paid")}>{booking.paymentStatus}</Badge>
+                  <Badge className={getPaymentStatusColor(booking.payments.status||"Paid")}>{booking.payments.status}</Badge>
                 </div>
                 <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <CreditCard className="h-6 w-6 text-blue-600" />
@@ -518,11 +518,10 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
                 </TabsContent>
 
                 <TabsContent value="payments" className="p-6">
-                  {booking.payments && booking.payments.length > 0 ? (
+                  {booking.payments ? (
                     <div className="space-y-4">
-                      {booking.payments.map((payment: any) => (
                         <div
-                          key={payment.id}
+                          key={booking?.payments.id}
                           className="flex items-center justify-between py-4 border-b border-gray-100 last:border-b-0"
                         >
                           <div className="flex items-center space-x-4">
@@ -530,21 +529,21 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
                               <CreditCard className="h-5 w-5 text-green-600" />
                             </div>
                             <div>
-                              <p className="font-semibold text-gray-900">${payment.amount.toLocaleString()}</p>
+                              <p className="font-semibold text-gray-900">${booking?.payments.amount.toLocaleString()}</p>
                               <p className="text-sm text-gray-600">
-                                {payment.method} • {payment.transaction}
+                                {booking?.payments.method} • {booking?.payments.transaction}
                               </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm text-gray-600">{payment.date}</p>
-                            <Badge className={getPaymentStatusColor(payment.status)+" text-xs"}>
-                              {payment.status}
+                            <p className="text-sm text-gray-600">{booking?.payments.date}</p>
+                            <Badge className={getPaymentStatusColor(booking?.payments.status)+" text-xs"}>
+                              {booking?.payments.status}
                             </Badge>
                           </div>
                           <div className="flex flex-col">
                             <p className="text-gray-800 text-sm font-medium">Action</p>
-                             <Link href={`/admin/payments/${payment.id}`}>
+                             <Link href={`/admin/payments/${booking?.payments.id}`}>
                               <Button variant="outline" className="w-full justify-start text-sm">
                                 <Eye className="h-4 w-4 mr-2" />
                                 View details
@@ -552,7 +551,6 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
                              </Link>
                           </div>
                         </div>
-                      ))}
                     </div>
                   ) : (
                     <div className="text-gray-600">No payment information available.</div>

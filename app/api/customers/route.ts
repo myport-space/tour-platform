@@ -33,14 +33,19 @@ export async function GET(request: NextRequest) {
           {
             bookings:{
               some:{
-                spot:{
-                  tour:{
-                    operator:{
-                      userId:userId
-                    }
-                  }
-                }
-              }
+                AND:[
+                  {
+                    spot:{
+                      tour:{
+                        operator:{
+                          userId:userId
+                        }
+                      }
+                    },
+                  },
+                
+                ]
+              },
             },
             OR:[
               { name: { contains: search, mode: "insensitive" } },
@@ -82,7 +87,7 @@ export async function GET(request: NextRequest) {
     // Transform data for frontend
     const transformedCustomers = customers.map((customer) => {
       const totalBookings = customer.bookings.length
-      const totalSpent = customer.bookings.reduce((sum, booking) => sum + booking.totalAmount, 0)
+      const totalSpent = customer.bookings.reduce((sum, booking) => sum + booking.paidAmount, 0)
       const lastBooking =
         customer.bookings.length > 0
           ? customer.bookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]

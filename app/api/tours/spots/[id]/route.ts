@@ -83,6 +83,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         departureDate: new Date(body.departureDate),
         returnDate: new Date(body.returnDate),
         maxSeats: Number.parseInt(body.maxSeats),
+        status:body.status.toUpperCase() || existingSpot.status
       },
     })
 

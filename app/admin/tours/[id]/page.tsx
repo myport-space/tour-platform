@@ -12,6 +12,7 @@ import { ArrowLeft, MapPin, Clock, Users, DollarSign, Plus, Send, Settings, Eye,
 import Link from "next/link"
 import { toast } from "sonner"
 import AddSpotModal from "./add-spot-modal"
+import { TourSpots } from "./tour-spots"
 
 interface Tour {
   id: string
@@ -48,6 +49,7 @@ interface Spot {
   returnDate: string
   maxSeats: number
   bookedSeats: number
+  tourId: string
   status: string
   bookings: Booking[]
 }
@@ -230,10 +232,10 @@ export default function TourDetailsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem disabled={tour.status.toLocaleLowerCase() == "completed" || tour.status.toLocaleLowerCase() == "cancelled"} value="draft">Draft</SelectItem>
+                <SelectItem disabled={tour.status.toLocaleLowerCase() == "completed" || tour.status.toLocaleLowerCase() == "cancelled"} value="active">Active</SelectItem>
+                <SelectItem disabled={tour.status.toLocaleLowerCase() == "completed" } value="cancelled">Cancelled</SelectItem>
+                <SelectItem disabled={tour.status.toLocaleLowerCase() == "cancelled" } value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -358,101 +360,11 @@ export default function TourDetailsPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="w-full">
             {tour.spots && tour.spots.length > 0 ? (
-              tour.spots.map((spot) => (
-                <Card key={spot.id} className="border-2 border-gray-200">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold">{spot.name}</h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Calendar className="h-4 w-4" />
-                          <span>
-                            {new Date(spot.departureDate).toLocaleDateString()} -{" "}
-                            {new Date(spot.returnDate).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => sendEmailToTravelers(spot.id)}>
-                          <Send className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Settings className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">
-                        {spot.bookedSeats} / {spot.maxSeats} seats
-                      </span>
-                      <Badge
-                        className={
-                          spot.bookedSeats >= spot.maxSeats ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                        }
-                      >
-                        {spot.bookedSeats >= spot.maxSeats ? "Full" : "Available"}
-                      </Badge>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          spot.bookedSeats >= spot.maxSeats
-                            ? "bg-red-500"
-                            : spot.bookedSeats >= spot.maxSeats * 0.8
-                              ? "bg-yellow-500"
-                              : "bg-green-500"
-                        }`}
-                        style={{ width: `${(spot.bookedSeats / spot.maxSeats) * 100}%` }}
-                      />
-                    </div>
-                  </CardHeader>
-
-                  <CardContent>
-                    <div className="space-y-3">
-                      <h4 className="font-medium text-sm">Bookings ({spot.bookings?.length || 0})</h4>
-                      {!spot.bookings || spot.bookings.length === 0 ? (
-                        <div className="text-center text-gray-400 py-4">
-                          <Users className="h-6 w-6 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">No bookings yet</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {spot.bookings.map((booking:any) => (
-                            <div key={booking.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <span className="text-xs font-medium text-blue-600">
-                                    {booking.customer?.name?.charAt(0) || "U"}
-                                  </span>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium">{booking.customer?.name || "Unknown"}</p>
-                                  <p className="text-xs text-gray-500">{booking.travelers?.length} travelers</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <Badge className={`text-xs ${getBookingStatusColor(booking.status)}`}>
-                                  {booking.status}
-                                </Badge>
-                                <Link href={`/admin/bookings/${booking.id}`}>
-                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                </Link>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+             <>
+               <TourSpots  spots={tour.spots||[]} setSpots={()=>{}}/>
+             </>
             ) : (
               <div className="col-span-full text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <Calendar className="h-10 w-10 mx-auto text-gray-400 mb-2" />

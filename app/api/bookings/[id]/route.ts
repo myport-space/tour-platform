@@ -85,17 +85,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
 
-    let paymentStatus = ""
-    booking.payments.filter((pym:any)=> paymentStatus=pym.status)
-    
-
+     
     
 
     // Format the booking data for the frontend
     const formattedBooking = {
       id: booking.id,
       status: booking.status,
-      paymentStatus: paymentStatus,
+      paymentStatus: booking.payments?.status,
       totalAmount: booking.totalAmount,
       travelersCount: booking.travelers.length,
       createdAt: booking.createdAt,
@@ -154,17 +151,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         age: getAge(traveler.dateOfBirth),
         specialRequirements: traveler.dietaryRequirements,
       })),
-      payments: booking.payments.map((payment) => ({
-        id: payment.id,
-        amount: payment.amount,
-        method: payment.method,
-        transaction: payment.transactionId || "N/A",
-        date: new Date(payment.createdAt).toLocaleDateString(),
-        status: payment.status,
-      })),
+      payments: {
+        id: booking?.payments?.id,
+        amount: booking?.payments?.amount,
+        method: booking?.payments?.method,
+        transaction: booking?.payments?.transactionId || "N/A",
+        date: booking?.payments?.createdAt ? new Date(booking.payments.createdAt).toLocaleDateString() : "N/A",
+        status: booking?.payments?.status,
+      },
       specialRequests: booking?.specialRequests
     }
 
+    
     return NextResponse.json(formattedBooking)
   } catch (error) {
     console.error("Error fetching booking details:", error)

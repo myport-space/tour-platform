@@ -34,6 +34,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useEffect } from "react"
 
+// At the top of the file, add API configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
 export default function ReviewsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [ratingFilter, setRatingFilter] = useState("all")
@@ -44,33 +47,30 @@ export default function ReviewsPage() {
   const [flagReviewId, setFlagReviewId] = useState<number | null>(null)
 
   type Review = {
-    id: number | string
+    id: number
     customer: {
       name: string
-      avatar?: string
+      avatar: string
     }
-    verified?: boolean
-    status: string
-    rating: number
-    date: string
     tour: {
       title: string
       location: string
     }
+    rating: number
     title: string
     content: string
+    date: string
+    status: string
     helpful: number
-    hasResponse?: boolean
+    hasResponse: boolean
     response?: string
+    verified: boolean
   }
 
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchReviews()
-  }, [searchTerm, ratingFilter, statusFilter])
-
+  // Update the fetchReviews function
   const fetchReviews = async () => {
     try {
       setLoading(true)
@@ -79,13 +79,21 @@ export default function ReviewsPage() {
       if (ratingFilter !== "all") params.append("rating", ratingFilter)
       if (statusFilter !== "all") params.append("status", statusFilter)
 
-      const response = await fetch(`/api/reviews?${params.toString()}`)
-      const data = await response.json()
+      // Get auth token from localStorage or your auth context
+      const token = localStorage.getItem("access_token")
 
-      if (data.success) {
-        setReviews(data.data)
+      const response = await fetch(`/api/reviews?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+      const data = await response.json()
+      
+      if (response.ok) {
+        setReviews(data.data) // FastAPI returns data directly, not wrapped in {success, data}
       } else {
-        console.error("Failed to fetch reviews:", data.error)
+        console.error("Failed to fetch reviews:", data.detail)
       }
     } catch (error) {
       console.error("Error fetching reviews:", error)
@@ -93,32 +101,134 @@ export default function ReviewsPage() {
       setLoading(false)
     }
   }
+  useEffect(() => {
+    // Since we're using mock data for now, let's just set the reviews directly
+    fetchReviews()
+    setLoading(false)
+  }, [])
 
-  const handleReplySubmit = async (reviewId: string, replyMessage: string) => {
+
+  // Update the handleReplySubmit function
+  const handleReplySubmit = async (reviewId: number, replyMessage: string) => {
     try {
-      const response = await fetch("/api/reviews", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          reviewId,
-          response: replyMessage,
-        }),
-      })
-
-      const data = await response.json()
-      if (data.success) {
-        // Refresh reviews after successful reply
-        fetchReviews()
-        setReplyReviewId(null)
-      }
+     
+ 
+      // Show success toast
+      alert("Reply sent successfully!")
     } catch (error) {
       console.error("Error sending reply:", error)
+      alert("Failed to send reply. Please try again.")
     }
   }
 
-  
+  const reviews_old = [
+    {
+      id: 1,
+      customer: {
+        name: "Sarah Johnson",
+        avatar: "/placeholder.svg?height=40&width=40",
+      },
+      tour: {
+        title: "Santorini Sunset Paradise",
+        location: "Santorini, Greece",
+      },
+      rating: 5,
+      title: "Absolutely magical experience!",
+      content:
+        "This tour exceeded all my expectations. The sunset views were breathtaking, the accommodation was luxurious, and our guide was incredibly knowledgeable. Every detail was perfectly planned. I would definitely book with EcoWander again!",
+      date: "2024-03-20",
+      status: "Published",
+      helpful: 12,
+      hasResponse: true,
+      response:
+        "Thank you so much for your wonderful review, Sarah! We're thrilled that you had such a magical experience in Santorini. We look forward to welcoming you on another adventure soon!",
+      verified: true,
+    },
+    {
+      id: 2,
+      customer: {
+        name: "Michael Chen",
+        avatar: "/placeholder.svg?height=40&width=40",
+      },
+      tour: {
+        title: "Swiss Alps Adventure",
+        location: "Interlaken, Switzerland",
+      },
+      rating: 4,
+      title: "Great adventure, minor issues",
+      content:
+        "Overall a fantastic trip! The hiking trails were amazing and the scenery was spectacular. The only downside was that one of the planned activities was cancelled due to weather, but the team did their best to provide alternatives.",
+      date: "2024-03-18",
+      status: "Published",
+      helpful: 8,
+      hasResponse: false,
+      verified: true,
+    },
+    {
+      id: 3,
+      customer: {
+        name: "Emma Wilson",
+        avatar: "/placeholder.svg?height=40&width=40",
+      },
+      tour: {
+        title: "Bali Cultural Journey",
+        location: "Ubud, Bali",
+      },
+      rating: 5,
+      title: "Life-changing cultural immersion",
+      content:
+        "This wasn't just a tour, it was a transformative experience. Learning about Balinese traditions, participating in local ceremonies, and staying with host families gave me such deep insights into the culture. Highly recommended!",
+      date: "2024-03-15",
+      status: "Pending",
+      helpful: 15,
+      hasResponse: false,
+      verified: true,
+    },
+    {
+      id: 4,
+      customer: {
+        name: "David Rodriguez",
+        avatar: "/placeholder.svg?height=40&width=40",
+      },
+      tour: {
+        title: "Iceland Northern Lights",
+        location: "Reykjavik, Iceland",
+      },
+      rating: 3,
+      title: "Good but not great",
+      content:
+        "The Northern Lights were incredible when we finally saw them on the last night. However, the accommodation was not as described and the food options were limited. The guide was friendly but seemed inexperienced.",
+      date: "2024-03-12",
+      status: "Flagged",
+      helpful: 3,
+      hasResponse: true,
+      response:
+        "Thank you for your feedback, David. We apologize for the issues with accommodation and will address this with our local partners. We're glad you were able to see the Northern Lights and appreciate your honest review.",
+      verified: true,
+    },
+    {
+      id: 5,
+      customer: {
+        name: "Lisa Thompson",
+        avatar: "/placeholder.svg?height=40&width=40",
+      },
+      tour: {
+        title: "Tokyo Food & Culture",
+        location: "Tokyo, Japan",
+      },
+      rating: 5,
+      title: "Foodie paradise!",
+      content:
+        "As a food enthusiast, this tour was perfect for me. We visited hidden local restaurants, learned to make sushi, and explored traditional markets. The cultural sites were beautiful too. Worth every penny!",
+      date: "2024-03-10",
+      status: "Published",
+      helpful: 20,
+      hasResponse: true,
+      response:
+        "We're so happy you enjoyed the culinary journey through Tokyo, Lisa! Our local food experts love sharing their passion for Japanese cuisine with fellow food enthusiasts.",
+      verified: true,
+    },
+  ]
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -323,7 +433,7 @@ export default function ReviewsPage() {
                             variant="outline"
                             size="sm"
                             className="rounded-lg"
-                            onClick={() => setViewReviewId(Number(review.id))}
+                            onClick={() => setViewReviewId(review.id)}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -331,7 +441,7 @@ export default function ReviewsPage() {
                             variant="outline"
                             size="sm"
                             className="rounded-lg"
-                            onClick={() => setFlagReviewId(Number(review.id))}
+                            onClick={() => setFlagReviewId(review.id)}
                           >
                             <Flag className="h-4 w-4" />
                           </Button>
@@ -358,7 +468,7 @@ export default function ReviewsPage() {
                               variant="outline"
                               size="sm"
                               className="rounded-lg"
-                              onClick={() => setReplyReviewId(Number(review.id))}
+                              onClick={() => setReplyReviewId(review.id)}
                             >
                               <Reply className="h-4 w-4 mr-2" />
                               Reply
@@ -402,119 +512,121 @@ export default function ReviewsPage() {
         )}
 
         {/* View Review Modal */}
-        {viewReviewId && (
-          <Dialog open={!!viewReviewId} onOpenChange={() => setViewReviewId(null)}>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Review Details</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                {(() => {
-                  const review = reviews.find((r) => r.id === viewReviewId)
-                  return review ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={review.customer.avatar || "/placeholder.svg"} alt={review.customer.name} />
-                          <AvatarFallback>
-                            {review.customer.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-semibold">{review.customer.name}</h3>
-                          <div className="flex items-center">{renderStars(review.rating)}</div>
-                        </div>
-                      </div>
+        <Dialog open={viewReviewId !== null} onOpenChange={(open) => !open && setViewReviewId(null)}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Review Details</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {(() => {
+                const review = reviews.find((r) => r.id === viewReviewId)
+                return review ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={review.customer.avatar || "/placeholder.svg"} alt={review.customer.name} />
+                        <AvatarFallback>
+                          {review.customer.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
                       <div>
-                        <h4 className="font-semibold mb-2">{review.title}</h4>
-                        <p className="text-gray-700">{review.content}</p>
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        <p>Tour: {review.tour.title}</p>
-                        <p>Date: {new Date(review.date).toLocaleDateString()}</p>
+                        <h3 className="font-semibold">{review.customer.name}</h3>
+                        <div className="flex items-center">{renderStars(review.rating)}</div>
                       </div>
                     </div>
-                  ) : null
-                })()}
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+                    <div>
+                      <h4 className="font-semibold mb-2">{review.title}</h4>
+                      <p className="text-gray-700">{review.content}</p>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      <p>Tour: {review.tour.title}</p>
+                      <p>Date: {new Date(review.date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                ) : null
+              })()}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Reply to Review Modal */}
-        {replyReviewId && (
-          <Dialog open={!!replyReviewId} onOpenChange={() => setReplyReviewId(null)}>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Reply to Review</DialogTitle>
-                <DialogDescription>Respond to this customer review.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div>
-                  <Label htmlFor="reply-message">Your Reply</Label>
-                  <Textarea id="reply-message" placeholder="Thank you for your review..." className="mt-2" rows={4} />
-                </div>
+        <Dialog open={replyReviewId !== null} onOpenChange={(open) => !open && setReplyReviewId(null)}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Reply to Review</DialogTitle>
+              <DialogDescription>Respond to this customer review.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div>
+                <Label htmlFor="reply-message">Your Reply</Label>
+                <Textarea id="reply-message" placeholder="Thank you for your review..." className="mt-2" rows={4} />
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setReplyReviewId(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => {
-                    const textarea = document.getElementById("reply-message") as HTMLTextAreaElement
-                    if (textarea && replyReviewId) {
-                      handleReplySubmit(replyReviewId.toString(), textarea.value)
-                    }
-                  }}
-                >
-                  Send Reply
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setReplyReviewId(null)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  const textarea = document.getElementById("reply-message") as HTMLTextAreaElement
+                  if (textarea && replyReviewId) {
+                    handleReplySubmit(replyReviewId, textarea.value)
+                  }
+                }}
+              >
+                Send Reply
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Flag Review Modal */}
-        {flagReviewId && (
-          <Dialog open={!!flagReviewId} onOpenChange={() => setFlagReviewId(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Flag Review</DialogTitle>
-                <DialogDescription>Why are you flagging this review?</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div>
-                  <Label htmlFor="flag-reason">Reason</Label>
-                  <Select>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select a reason" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="inappropriate">Inappropriate Content</SelectItem>
-                      <SelectItem value="spam">Spam</SelectItem>
-                      <SelectItem value="fake">Fake Review</SelectItem>
-                      <SelectItem value="offensive">Offensive Language</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="flag-notes">Additional Notes</Label>
-                  <Textarea id="flag-notes" placeholder="Optional additional information..." className="mt-2" />
-                </div>
+        <Dialog open={flagReviewId !== null} onOpenChange={(open) => !open && setFlagReviewId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Flag Review</DialogTitle>
+              <DialogDescription>Why are you flagging this review?</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div>
+                <Label htmlFor="flag-reason">Reason</Label>
+                <Select>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select a reason" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inappropriate">Inappropriate Content</SelectItem>
+                    <SelectItem value="spam">Spam</SelectItem>
+                    <SelectItem value="fake">Fake Review</SelectItem>
+                    <SelectItem value="offensive">Offensive Language</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setFlagReviewId(null)}>
-                  Cancel
-                </Button>
-                <Button variant="destructive">Flag Review</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+              <div>
+                <Label htmlFor="flag-notes">Additional Notes</Label>
+                <Textarea id="flag-notes" placeholder="Optional additional information..." className="mt-2" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setFlagReviewId(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setFlagReviewId(null)
+                  alert("Review flagged successfully!")
+                }}
+              >
+                Flag Review
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   )

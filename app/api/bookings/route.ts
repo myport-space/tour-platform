@@ -130,7 +130,8 @@ export async function GET(request: NextRequest) {
       departureDate: booking.spot?.departureDate ? booking.spot.departureDate.toISOString().split("T")[0] : null,
       specialRequests: booking.specialRequests || null,
       spotId: booking.spotId,
-    }))
+      paymentStatus:booking.payments?.status,
+    })) 
 
     // Calculate statistics
     const stats = {
@@ -155,7 +156,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
      // Verify authentication
-   
+   /*
     let booking = await prisma.booking.create({
       data:{
         bookingNumber: `BK-${Date.now()}`,
@@ -210,9 +211,10 @@ export async function POST(request: NextRequest) {
         
       }
     })
+      */
 
     // Just for testing,
-    const spot = await prisma.spot.update({
+    /*const spot = await prisma.spot.update({
       where:{
         id:"cmbtod8yl000cvlcgvi2txx6p",
       },
@@ -220,6 +222,20 @@ export async function POST(request: NextRequest) {
         bookedSeats:2,
       }
     })
+      */
+
+
+    let booking   = await prisma.review.create({
+      data:{
+        comment:"One of the best Tour ever in my Life",
+        rating:4.5,
+        customerId:"cmbtow2ao000lvlcgw1540dpd",
+        tourId:"cmbtod7z1000avlcgkdcnwh07",
+        title:"Wonderful Experience",
+        isVerified:true,
+      }
+    })
+
     return NextResponse.json({message:"Booking created successfully", booking}, { status: 201 })
   } catch (error) {
     console.error("Error creating booking:", error)

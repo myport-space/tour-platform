@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -17,98 +17,79 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import {
-  Calendar,
-  Users,
-  MapPin,
-  TrendingUp,
-  DollarSign,
-  Plane,
-  Star,
-  Plus,
-  Eye,
-  Edit,
-  Trash2,
-  Search,
-  Download,
-} from "lucide-react"
+import { Calendar, Users, MapPin, TrendingUp, DollarSign, Plane, Star, Plus, Eye, Edit, Trash2, Search, Download, Loader2 } from 'lucide-react'
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import AdminLayout from "@/components/AdminLayout"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AdminDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState("30")
-
-  // Sample data
-  const stats = {
-    totalTours: 156,
-    activeTours: 24,
-    upcomingTours: 18,
-    completedTours: 114,
-    totalRevenue: 2840000,
-    totalTravelers: 3420,
-    averageRating: 4.8,
-    monthlyGrowth: 12.5,
+  const [loading, setLoading] = useState(true)
+  type TourStatusDataItem = {
+    name: string
+    value: number
+    color: string
   }
 
-  const recentTours = [
-    {
-      id: 1,
-      title: "Santorini Sunset Paradise",
-      location: "Santorini, Greece",
-      status: "Active",
-      travelers: 12,
-      departure: "2024-04-15",
-      revenue: 15588,
-      rating: 4.9,
+  const [dashboardData, setDashboardData] = useState<{
+    stats: {
+      totalTours: number
+      activeTours: number
+      upcomingTours: number
+      completedTours: number
+      totalRevenue: number
+      totalTravelers: number
+      averageRating: number
+      monthlyGrowth: number
+    }
+    monthlyData: any[]
+    tourStatusData: TourStatusDataItem[]
+    recentTours: any[]
+  }>({
+    stats: {
+      totalTours: 0,
+      activeTours: 0,
+      upcomingTours: 0,
+      completedTours: 0,
+      totalRevenue: 0,
+      totalTravelers: 0,
+      averageRating: 0,
+      monthlyGrowth: 0,
     },
-    {
-      id: 2,
-      title: "Swiss Alps Adventure",
-      location: "Interlaken, Switzerland",
-      status: "Upcoming",
-      travelers: 8,
-      departure: "2024-04-22",
-      revenue: 15192,
-      rating: 4.8,
-    },
-    {
-      id: 3,
-      title: "Bali Cultural Journey",
-      location: "Ubud, Bali",
-      status: "Completed",
-      travelers: 10,
-      departure: "2024-03-28",
-      revenue: 8990,
-      rating: 4.7,
-    },
-    {
-      id: 4,
-      title: "Iceland Northern Lights",
-      location: "Reykjavik, Iceland",
-      status: "Active",
-      travelers: 6,
-      departure: "2024-04-18",
-      revenue: 9594,
-      rating: 4.9,
-    },
-  ]
+    monthlyData: [],
+    tourStatusData: [],
+    recentTours: [],
+  })
+  const { toast } = useToast()
 
-  const monthlyData = [
-    { month: "Jan", tours: 12, revenue: 180000, travelers: 144 },
-    { month: "Feb", tours: 15, revenue: 225000, travelers: 180 },
-    { month: "Mar", tours: 18, revenue: 270000, travelers: 216 },
-    { month: "Apr", tours: 14, revenue: 210000, travelers: 168 },
-    { month: "May", tours: 20, revenue: 300000, travelers: 240 },
-    { month: "Jun", tours: 22, revenue: 330000, travelers: 264 },
-  ]
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch("/api/dashboard")
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch dashboard data")
+        }
+        
+        const data = await response.json()
+        setDashboardData(data)
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const tourStatusData = [
-    { name: "Active", value: 24, color: "#10B981" },
-    { name: "Upcoming", value: 18, color: "#3B82F6" },
-    { name: "Completed", value: 114, color: "#6B7280" },
-  ]
+    fetchDashboardData()
+  }, [toast])
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -134,15 +115,27 @@ export default function AdminDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Active":
+      case "ACTIVE":
         return "bg-green-100 text-green-800 border-green-200"
-      case "Upcoming":
+      case "UPCOMING":
         return "bg-blue-100 text-blue-800 border-blue-200"
-      case "Completed":
+      case "COMPLETED":
         return "bg-gray-100 text-gray-800 border-gray-200"
       default:
         return "bg-gray-100 text-gray-800 border-gray-200"
     }
+  }
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-12 w-12 text-green-500 animate-spin mb-4" />
+          <h2 className="text-xl font-semibold text-gray-700">Loading dashboard data...</h2>
+          <p className="text-gray-500 mt-2">Please wait while we fetch the latest information</p>
+        </div>
+      </AdminLayout>
+    )
   }
 
   return (
@@ -174,31 +167,31 @@ export default function AdminDashboard() {
           {[
             {
               title: "Total Tours",
-              value: stats.totalTours,
+              value: dashboardData.stats.totalTours,
               icon: MapPin,
               color: "from-blue-500 to-blue-600",
-              change: "+12%",
+              change: `+${Math.round(dashboardData.stats.monthlyGrowth)}%`,
             },
             {
               title: "Active Tours",
-              value: stats.activeTours,
+              value: dashboardData.stats.activeTours,
               icon: Plane,
               color: "from-green-500 to-green-600",
-              change: "+8%",
+              change: `+${Math.round(dashboardData.stats.monthlyGrowth)}%`,
             },
             {
               title: "Total Revenue",
-              value: `$${(stats.totalRevenue / 1000000).toFixed(1)}M`,
+              value: `$${(dashboardData.stats.totalRevenue / 1000).toFixed(1)}K`,
               icon: DollarSign,
               color: "from-purple-500 to-purple-600",
-              change: "+15%",
+              change: `+${Math.round(dashboardData.stats.monthlyGrowth)}%`,
             },
             {
               title: "Total Travelers",
-              value: stats.totalTravelers.toLocaleString(),
+              value: dashboardData.stats.totalTravelers.toLocaleString(),
               icon: Users,
               color: "from-orange-500 to-orange-600",
-              change: "+18%",
+              change: `+${Math.round(dashboardData.stats.monthlyGrowth)}%`,
             },
           ].map((stat, index) => (
             <motion.div key={index} variants={itemVariants}>
@@ -239,7 +232,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={monthlyData}>
+                  <LineChart data={dashboardData.monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
@@ -271,7 +264,7 @@ export default function AdminDashboard() {
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={tourStatusData}
+                      data={dashboardData.tourStatusData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
@@ -279,7 +272,7 @@ export default function AdminDashboard() {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {tourStatusData.map((entry, index) => (
+                      {dashboardData.tourStatusData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -287,7 +280,7 @@ export default function AdminDashboard() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="mt-4 space-y-2">
-                  {tourStatusData.map((item, index) => (
+                  {dashboardData.tourStatusData.map((item, index) => (
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex items-center">
                         <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: item.color }} />
@@ -350,68 +343,82 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recentTours.map((tour, index) => (
-                      <motion.tr
-                        key={tour.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="py-2 px-2">
-                          <div>
-                            <div className="font-semibold text-gray-900 text-sm">{tour.title}</div>
-                            <div className="text-sm text-gray-500 flex items-center mt-1">
-                              <MapPin className="h-3 w-3 mr-1" />
-                              {tour.location}
+                    {dashboardData.recentTours.length > 0 ? (
+                      dashboardData.recentTours.map((tour, index) => (
+                        <motion.tr
+                          key={tour.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.1 }}
+                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="py-2 px-2">
+                            <div>
+                              <div className="font-semibold text-gray-900 text-sm">{tour.title}</div>
+                              <div className="text-sm text-gray-500 flex items-center mt-1">
+                                <MapPin className="h-3 w-3 mr-1" />
+                                {tour.location}
+                              </div>
                             </div>
-                          </div>
+                          </td>
+                          <td className="py-2 px-2">
+                            <Badge className={`${getStatusColor(tour.status)} border rounded-full px-3 py-1 text-sm`}>
+                              {tour.status}
+                            </Badge>
+                          </td>
+                          <td className="py-2 px-2">
+                            <div className="flex items-center">
+                              <Users className="h-4 w-4 mr-2 text-gray-400" />
+                              <span className="font-medium text-sm">{tour.travelers}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2">
+                            <div className="flex items-center">
+                              <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                              <span className="text-sm">
+                                {tour.departure ? new Date(tour.departure).toLocaleDateString() : "N/A"}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2">
+                            <span className="font-bold text-green-600 text-sm">${tour.revenue.toLocaleString()}</span>
+                          </td>
+                          <td className="py-2 px-2">
+                            <div className="flex items-center">
+                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
+                              <span className="font-medium text-sm">{tour.rating}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2">
+                            <div className="flex items-center space-x-2">
+                              <Link href={`/admin/tours/${tour.id}`}>
+                                <Button variant="outline" size="sm" className="rounded-full">
+                                  <Eye className="h-3 w-3" />
+                                </Button>
+                              </Link>
+                              <Link href={`/admin/tours/${tour.id}/edit`}>
+                                <Button variant="outline" size="sm" className="rounded-full">
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-full text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-gray-500">
+                          No tours found. Create your first tour to get started.
                         </td>
-                        <td className="py-2 px-2">
-                          <Badge className={`${getStatusColor(tour.status)} border rounded-full px-3 py-1 text-sm`}>
-                            {tour.status}
-                          </Badge>
-                        </td>
-                        <td className="py-2 px-2">
-                          <div className="flex items-center">
-                            <Users className="h-4 w-4 mr-2 text-gray-400" />
-                            <span className="font-medium text-sm">{tour.travelers}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-2">
-                          <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                            <span className="text-sm">{new Date(tour.departure).toLocaleDateString()}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-2">
-                          <span className="font-bold text-green-600 text-sm">${tour.revenue.toLocaleString()}</span>
-                        </td>
-                        <td className="py-2 px-2">
-                          <div className="flex items-center">
-                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                            <span className="font-medium text-sm">{tour.rating}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-2">
-                          <div className="flex items-center space-x-2">
-                            <Button variant="outline" size="sm" className="rounded-full">
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                            <Button variant="outline" size="sm" className="rounded-full">
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="rounded-full text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

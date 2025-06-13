@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Users, Send, Settings, Eye, Edit, GripVertical } from "lucide-react"
+import { Calendar, Users, Send, Settings, Eye, Edit, GripVertical, BluetoothSearchingIcon } from "lucide-react"
+import EditSpotModal from "./edit-tour-spot"
+import Link from "next/link"
 
-interface Booking {
+interface Booking_ {
   id: string
   customerName: string
   email: string
@@ -22,24 +24,25 @@ interface Booking {
   avatar: string
 }
 
-interface Spot {
+interface Spot_ {
   id: string
   name: string
   departureDate: string
   returnDate: string
   maxSeats: number
   status: string
-  bookings: Booking[]
+  tourId: string
+  bookings: any[]
 }
 
 interface TourSpotsProps {
-  spots: Spot[]
-  setSpots: React.Dispatch<React.SetStateAction<Spot[]>>
+  spots: Spot_[]
+  setSpots: React.Dispatch<React.SetStateAction<Spot_[]>>
 }
 
-export function TourSpots({ spots = [], setSpots }: TourSpotsProps) {
+export function TourSpots({ spots , setSpots }: TourSpotsProps) {
   const [expandedSpot, setExpandedSpot] = useState<string | null>(null)
-
+ 
   const onDragEnd = (result: any) => {
     const { destination, source, draggableId } = result
 
@@ -89,6 +92,9 @@ export function TourSpots({ spots = [], setSpots }: TourSpotsProps) {
     setExpandedSpot(expandedSpot === spotId ? null : spotId)
   }
 
+ 
+
+
   const sendEmailToTravelers = (spotId: string) => {
     console.log(`Sending email to travelers in spot ${spotId}`)
     // Implement email sending logic here
@@ -99,7 +105,7 @@ export function TourSpots({ spots = [], setSpots }: TourSpotsProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {spots.length > 0 ? (
           spots.map((spot) => {
-            const totalTravelers = spot.bookings.reduce((sum, booking) => sum + booking.travelers, 0)
+            const totalTravelers = spot.bookings.reduce((sum, booking) => sum + booking.travelers.length, 0)
             const isFull = totalTravelers >= spot.maxSeats
 
             return (
@@ -120,12 +126,13 @@ export function TourSpots({ spots = [], setSpots }: TourSpotsProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => sendEmailToTravelers(spot.id)}
+                        onClick={() => console.log("It word")
+                        }
                         className="text-blue-600"
                       >
                         <Send className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button onClick={()=>alert("hi")} variant="outline" size="sm">
                         <Settings className="h-4 w-4" />
                       </Button>
                     </div>
@@ -138,7 +145,7 @@ export function TourSpots({ spots = [], setSpots }: TourSpotsProps) {
                       </span>
                     </div>
                     <Badge className={isFull ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}>
-                      {isFull ? "Full" : "Available"}
+                      {spot.status.toLowerCase()}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -178,34 +185,32 @@ export function TourSpots({ spots = [], setSpots }: TourSpotsProps) {
                                     <Avatar className="h-8 w-8">
                                       <AvatarImage src={booking.avatar || "/placeholder.svg"} />
                                       <AvatarFallback>
-                                        {booking.customerName
+                                        {booking.customer.name
                                           .split(" ")
-                                          .map((n) => n[0])
+                                          .map((n:any) => n[0])
                                           .join("")}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <div className="flex-1 min-w-0">
+                                    <div className="flex-1 ">
                                       <p className="text-sm font-medium text-gray-900 truncate">
-                                        {booking.customerName}
+                                       {booking.customer.name}
                                       </p>
-                                      <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                        <span>{booking.travelers} travelers</span>
-                                        <span>•</span>
-                                        <span>${booking.amount}</span>
+                                      <div className="flex flex-col  text-xs text-gray-500">
+                                        <span>{booking.travelers.length} travelers</span>
+                                        <div className="flex space-y-3">
+                                          <span>${booking.payments.amount}</span>
+                                        </div>
                                       </div>
                                     </div>
                                     <div className="flex flex-col items-end space-y-1">
                                       <Badge className={`text-xs ${getBookingStatusColor(booking.status)}`}>
                                         {booking.status}
                                       </Badge>
-                                      <div className="flex space-x-1">
-                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                      <Link href={`/admin/bookings/${booking.id}`} className="flex space-x-1">
+                                        <Button  variant="ghost" size="sm" className="h-6 w-6 p-0">
                                           <Eye className="h-3 w-3" />
-                                        </Button>
-                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                          <Edit className="h-3 w-3" />
-                                        </Button>
-                                      </div>
+                                        </Button> 
+                                      </Link>
                                     </div>
                                   </div>
                                 </div>
@@ -230,5 +235,7 @@ export function TourSpots({ spots = [], setSpots }: TourSpotsProps) {
         )}
       </div>
     </DragDropContext>
+
+
   )
 }
