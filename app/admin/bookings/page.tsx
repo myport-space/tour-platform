@@ -28,7 +28,6 @@ interface Booking {
   totalAmount: number
   paidAmount: number
   status: string
-  paymentStatus: string
   bookingDate: string
   departureDate: string
   specialRequests: string | null
@@ -136,7 +135,6 @@ export default function BookingsPage() {
         "Total Amount",
         "Paid Amount",
         "Status",
-        "Payment Status",
         "Booking Date",
         "Departure Date",
       ],
@@ -149,7 +147,6 @@ export default function BookingsPage() {
         booking.totalAmount,
         booking.paidAmount,
         booking.status,
-        booking.paymentStatus,
         booking.bookingDate,
         booking.departureDate,
       ]),
@@ -371,31 +368,24 @@ export default function BookingsPage() {
 
                     {/* Payment Info */}
                     <div className="lg:col-span-2">
-                      <div className="space-y-2">
+                      <div className="">
                           <span className="text-sm text-gray-700 font-semibold">Payment</span>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Total Amount:</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-600">Total Amount :</span>
                           <span className="font-semibold">${booking.totalAmount.toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Paid Amount:</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-600">Paid Amount :</span>
                           <span className="font-semibold text-green-600">${booking.paidAmount.toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Payment Status:</span>
-                          <Badge
-                            className={`${getPaymentStatusColor(booking.paymentStatus)} border rounded-full px-2 py-1 text-xs`}
-                          >
-                            {booking.paymentStatus}
-                          </Badge>
-                        </div>
+                        
                       </div>
                     </div>
 
                     {/* Actions */}
                     <div className="lg:col-span-2 ">
-                     <div className="space-y-2">
-                          <span className="text-sm text-gray-700 font-semibold">Payment</span>
+                     <div className="flex flex-col space-y-2">
+                          <span className="text-sm text-gray-700 font-semibold">Actions</span>
                           <Link href={`/admin/bookings/${booking.id}`}>
                             <Button variant="outline" size="sm" className="w-full rounded-lg">
                               <Eye className="h-4 w-4 mr-2" />

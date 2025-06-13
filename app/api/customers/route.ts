@@ -24,35 +24,31 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || ""
     const status = searchParams.get("status") || "all"
 
-    // Build where clause for filtering customers who have bookings with this operator
-    const whereClause: any = {
-      bookings:{
-            every:{
-                spot:{
-                    tour:{
-                        operator:{
-                            userId
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Add search filter
-    if (search) {
-      whereClause.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-        { phone: { contains: search, mode: "insensitive" } },
-        { address: { contains: search, mode: "insensitive" } },
-      ]
-    }
+     
 
     // Fetch customers with their bookings
-    const customers = await prisma.user.findMany({
+    const customers = await prisma.customerUser.findMany({
       where: {
-       
+        AND:[
+          {
+            bookings:{
+              some:{
+                spot:{
+                  tour:{
+                    operator:{
+                      userId:userId
+                    }
+                  }
+                }
+              }
+            },
+            OR:[
+              { name: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+              { phone: { contains: search, mode: "insensitive" } },
+            ]
+          }
+        ]
       },
       include: {
         bookings: {

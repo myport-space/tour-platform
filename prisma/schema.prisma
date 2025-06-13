@@ -127,6 +127,7 @@ model User {
   operator TourOperator?
 
   @@map("users")
+ 
 }
 
 model CustomerUser{
@@ -149,30 +150,142 @@ model CustomerUser{
 }
 
 model TourOperator {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  companyName             String
+  tagline                 String?
+  description             String?
+  founded                 String?
+  headquarters            String?
+  employees               Int?
+  operatingRegions        String[]
+  website                 String?
+  email                   String?
+  phone                   String?
+  address                 String?
+  socialMedia             Json?
+  businessHours           Json?
+  timezone                String?
+  emergencyContact        String?
+  logo                    String?
+  coverImage              String?
+  sustainabilityScore     Int?
+  safetyRecord            Int?
+  communityImpact         Int?
+  customerSatisfaction    Int?
+  licenseNumber           String?
+  isPublic                Boolean  @default(true)
+  allowSearchIndexing     Boolean  @default(true)
+  allowContactForm        Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  // Relations
+  user                    User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tours                   Tour[]
+  teamMembers             TeamMember[]
+  categories              Category[]
+  certifications          Certification[]
+  gallery                 GalleryItem[]
+  partnerships            Partnership[]
+  awards                  Award[]
+  sustainabilityInitiatives SustainabilityInitiative[]
+  @@map("tour_operators")
+
+}
+
+model TeamMember {
+  id         String   @id @default(cuid())
+  operatorId String
+  name       String
+  role       String
+  image      String?
+  bio        String?
+  email      String?
+  phone      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  operator TourOperator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+}
+
+model Certification {
   id                String   @id @default(cuid())
-  userId            String   @unique
-  companyName       String
-  companyDescription String  @db.Text
-  companyAddress    String
-  companyCity       String
-  companyCountry    String
-  companyWebsite    String?
-  businessLicense   String?
-  taxId             String?
-  experience        String?
-  specializations   String[]
-  languages         String[]
-  rating            Float?   @default(0)
-  totalReviews      Int      @default(0)
-  isVerified        Boolean  @default(false)
+  operatorId        String
+  name              String
+  year              String
+  organization      String
+  certificateNumber String?
+  certificateUrl    String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   // Relations
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tours Tour[]
-  categories Category[]
-  @@map("tour_operators")
+  operator TourOperator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+}
+
+model GalleryItem {
+  id         String   @id @default(cuid())
+  operatorId String
+  url        String
+  caption    String?
+  category   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  operator TourOperator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+}
+
+model Partnership {
+  id          String   @id @default(cuid())
+  operatorId  String
+  name        String
+  logo        String?
+  description String?
+  website     String?
+  startDate   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  operator TourOperator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+}
+
+model Award {
+  id           String   @id @default(cuid())
+  operatorId   String
+  name         String
+  year         String
+  organization String
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  operator TourOperator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+}
+
+model SustainabilityInitiative {
+  id          String   @id @default(cuid())
+  operatorId  String
+  title       String
+  description String
+  icon        String?
+  startDate   String?
+  impact      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  operator TourOperator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
 }
 
 // Tour Models

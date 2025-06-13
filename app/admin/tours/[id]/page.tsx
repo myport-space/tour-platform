@@ -330,14 +330,7 @@ export default function TourDetailsPage() {
                   </div>
                 </div>
 
-                <div>
-                  <p className="text-sm text-gray-600">
-                    <strong>Tour Operator:</strong> {tour.tourOperator?.user?.name || "Not assigned"}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <strong>Contact:</strong> {tour.tourOperator?.user?.email || "No contact info"}
-                  </p>
-                </div>
+                
               </div>
 
               <div>

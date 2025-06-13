@@ -48,7 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       where: {
       
         AND:[
-            {  id: bookingId},
+            {  id: bookingId}, 
             {
                 spot: {
                     tour: {
@@ -85,8 +85,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
 
-    const paymentStatus = booking.payments.filter((py:any)=> py.status == "PAID") ? "Paid" : "Pending"
-    console.log(paymentStatus);
+    let paymentStatus = ""
+    booking.payments.filter((pym:any)=> paymentStatus=pym.status)
     
 
     
@@ -148,6 +148,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       travelers: booking.travelers.map((traveler) => ({
         id: traveler.id,
         name: `${traveler.firstName} ${traveler.lastName}`,
+        email:traveler.email,
+        phone:traveler.phone,
+        nationality:traveler.nationality,
         age: getAge(traveler.dateOfBirth),
         specialRequirements: traveler.dietaryRequirements,
       })),

@@ -1,23 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
 import {
   Building,
   Users,
-  Award,
+  AwardIcon,
   Camera,
   Plus,
-  X,
   Save,
   Eye,
   Upload,
@@ -25,81 +24,113 @@ import {
   Phone,
   Star,
   Leaf,
-  Shield,
   Trash2,
-  FileText,
   Settings,
-  User,
-  ImageIcon,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import AdminLayout from "@/components/AdminLayout"
 
+interface ProfileData {
+  id: string
+  companyName: string
+  tagline: string
+  description: string
+  founded: string
+  headquarters: string
+  employees: number
+  operatingRegions: string[]
+  website: string
+  email: string
+  phone: string
+  address: string
+  socialMedia: Record<string, string>
+  businessHours: Record<string, any>
+  timezone: string
+  emergencyContact: string
+  logo: string
+  coverImage: string
+  sustainabilityScore: number
+  safetyRecord: number
+  communityImpact: number
+  customerSatisfaction: number
+  teamMembers: TeamMember[]
+  certifications: Certification[]
+  gallery: GalleryItem[]
+  partnerships: Partnership[]
+  awards: AwardItem[]
+  sustainabilityInitiatives: SustainabilityInitiative[]
+  isPublic?: boolean
+  allowSearchIndexing?: boolean
+  allowContactForm?: boolean
+}
+
+interface TeamMember {
+  id: string
+  name: string
+  role: string
+  image: string
+  bio: string
+  email: string
+  phone: string
+}
+
+interface Certification {
+  id: string
+  name: string
+  year: string
+  organization: string
+  certificateNumber: string
+  certificateUrl: string
+}
+
+interface GalleryItem {
+  id: string
+  url: string
+  caption: string
+  category: string
+}
+
+interface Partnership {
+  id: string
+  name: string
+  logo: string
+  description: string
+  website: string
+  startDate: string
+}
+
+interface AwardItem {
+  id: string
+  name: string
+  year: string
+  organization: string
+  description: string
+}
+
+interface SustainabilityInitiative {
+  id: string
+  title: string
+  description: string
+  icon: string
+  startDate: string
+  impact: string
+}
+
 export default function AdminProfile() {
   const [activeTab, setActiveTab] = useState("basic")
-  const [teamMembers, setTeamMembers] = useState([
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      role: "Founder & CEO",
-      image: "/placeholder.svg?height=100&width=100",
-      bio: "Former conservation biologist with a passion for sustainable travel",
-      email: "sarah@ecowander.com",
-      phone: "+1 (555) 123-4567",
-    },
-  ])
-  const [certifications, setCertifications] = useState([
-    {
-      id: 1,
-      name: "Certified Sustainable Tourism",
-      year: "2012",
-      organization: "Global Sustainable Tourism Council",
-      certificateNumber: "CST-2012-001",
-    },
-  ])
-  const [gallery, setGallery] = useState([
-    {
-      id: 1,
-      url: "https://res.cloudinary.com/dnsc6ccwp/image/upload/v1748534256/backpacker-772991_qtegir.jpg",
-      caption: "Guided hike through the Swiss Alps",
-      category: "Adventure",
-    },
-  ])
-  const [partnerships, setPartnerships] = useState([
-    {
-      id: 1,
-      name: "World Wildlife Fund",
-      logo: "/placeholder.svg?height=60&width=60",
-      description: "Conservation partnership to protect endangered species",
-      website: "https://www.worldwildlife.org",
-      startDate: "2018",
-    },
-  ])
-  const [awards, setAwards] = useState([
-    {
-      id: 1,
-      name: "Sustainable Tourism Excellence Award",
-      year: "2023",
-      organization: "World Travel Association",
-      description: "Recognized for outstanding commitment to sustainable travel practices",
-    },
-  ])
-  const [sustainabilityInitiatives, setSustainabilityInitiatives] = useState([
-    {
-      id: 1,
-      title: "Carbon Offset Program",
-      description: "We offset 150% of the carbon emissions from all our tours through verified reforestation projects.",
-      icon: "Leaf",
-      startDate: "2019",
-      impact: "15,000 tons CO2 offset annually",
-    },
-  ])
+  const [profileData, setProfileData] = useState<ProfileData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [newItemData, setNewItemData] = useState<any>({})
+  const { toast } = useToast()
 
   const tabs = [
     { id: "basic", label: "Basic Info", icon: Building },
     { id: "contact", label: "Contact", icon: Phone },
     { id: "team", label: "Team", icon: Users },
-    { id: "certifications", label: "Certifications", icon: Award },
+    { id: "certifications", label: "Certifications", icon: AwardIcon },
     { id: "gallery", label: "Gallery", icon: Camera },
     { id: "partnerships", label: "Partnerships", icon: Globe },
     { id: "awards", label: "Awards", icon: Star },
@@ -107,125 +138,869 @@ export default function AdminProfile() {
     { id: "settings", label: "Settings", icon: Settings },
   ]
 
-  const addTeamMember = () => {
-    const newMember = {
-      id: Date.now(),
-      name: "",
-      role: "",
-      image: "",
-      bio: "",
-      email: "",
-      phone: "",
+  // Fetch profile data
+  useEffect(() => {
+    fetchProfile()
+  }, [])
+
+  const fetchProfile = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/api/profile/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setProfileData(data)
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch profile data",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch profile data",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
-    setTeamMembers([...teamMembers, newMember])
   }
 
-  const updateTeamMember = (id: number, field: string, value: string) => {
-    setTeamMembers(teamMembers.map((member) => (member.id === id ? { ...member, [field]: value } : member)))
-  }
+  const saveProfile = async () => {
+    if (!profileData) return
 
-  const removeTeamMember = (id: number) => {
-    setTeamMembers(teamMembers.filter((member) => member.id !== id))
-  }
+    setSaving(true)
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/api/profile/`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          companyName: profileData.companyName,
+          tagline: profileData.tagline,
+          description: profileData.description,
+          founded: profileData.founded,
+          headquarters: profileData.headquarters,
+          employees: profileData.employees,
+          operatingRegions: profileData.operatingRegions,
+          website: profileData.website,
+          email: profileData.email,
+          phone: profileData.phone,
+          address: profileData.address,
+          socialMedia: profileData.socialMedia,
+          businessHours: profileData.businessHours,
+          timezone: profileData.timezone,
+          emergencyContact: profileData.emergencyContact,
+          sustainabilityScore: profileData.sustainabilityScore,
+          safetyRecord: profileData.safetyRecord,
+          communityImpact: profileData.communityImpact,
+          customerSatisfaction: profileData.customerSatisfaction,
+          isPublic: profileData.isPublic,
+          allowSearchIndexing: profileData.allowSearchIndexing,
+          allowContactForm: profileData.allowContactForm,
+        }),
+      })
 
-  const addCertification = () => {
-    const newCert = {
-      id: Date.now(),
-      name: "",
-      year: "",
-      organization: "",
-      certificateNumber: "",
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Profile updated successfully",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update profile",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error saving profile:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update profile",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
     }
-    setCertifications([...certifications, newCert])
   }
 
-  const updateCertification = (id: number, field: string, value: string) => {
-    setCertifications(certifications.map((cert) => (cert.id === id ? { ...cert, [field]: value } : cert)))
+  const updateProfileField = (field: keyof ProfileData, value: any) => {
+    if (!profileData) return
+    setProfileData({ ...profileData, [field]: value })
   }
 
-  const removeCertification = (id: number) => {
-    setCertifications(certifications.filter((cert) => cert.id !== id))
+  const resetNewItemData = () => {
+    setNewItemData({})
   }
 
-  const addGalleryItem = () => {
-    const newItem = {
-      id: Date.now(),
-      url: "",
-      caption: "",
-      category: "",
+  const handleAddItem = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      let endpoint = ""
+      let payload = {}
+
+      switch (activeTab) {
+        case "team":
+          endpoint = "/api/profile/team"
+          payload = {
+            name: newItemData.name || "",
+            role: newItemData.role || "",
+            image: newItemData.image || "",
+            bio: newItemData.bio || "",
+            email: newItemData.email || "",
+            phone: newItemData.phone || "",
+          }
+          break
+        case "certifications":
+          endpoint = "/api/profile/certifications"
+          payload = {
+            name: newItemData.name || "",
+            year: newItemData.year || new Date().getFullYear().toString(),
+            organization: newItemData.organization || "",
+            certificateNumber: newItemData.certificateNumber || "",
+            certificateUrl: newItemData.certificateUrl || "",
+          }
+          break
+        case "gallery":
+          endpoint = "/api/profile/gallery"
+          payload = {
+            url: newItemData.url || "/placeholder.svg?height=300&width=400",
+            caption: newItemData.caption || "",
+            category: newItemData.category || "general",
+          }
+          break
+        case "partnerships":
+          endpoint = "/api/profile/partnerships"
+          payload = {
+            name: newItemData.name || "",
+            logo: newItemData.logo || "",
+            description: newItemData.description || "",
+            website: newItemData.website || "",
+            startDate: newItemData.startDate || new Date().toISOString().split("T")[0],
+          }
+          break
+        case "awards":
+          endpoint = "/api/profile/awards"
+          payload = {
+            name: newItemData.name || "",
+            year: newItemData.year || new Date().getFullYear().toString(),
+            organization: newItemData.organization || "",
+            description: newItemData.description || "",
+          }
+          break
+        case "sustainability":
+          endpoint = "/api/profile/sustainability"
+          payload = {
+            title: newItemData.title || "",
+            description: newItemData.description || "",
+            icon: newItemData.icon || "Leaf",
+            startDate: newItemData.startDate || new Date().toISOString().split("T")[0],
+            impact: newItemData.impact || "",
+          }
+          break
+        default:
+          return
+      }
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (response.ok) {
+        await fetchProfile() // Refresh data
+        setShowAddDialog(false)
+        resetNewItemData()
+        toast({
+          title: "Success",
+          description: "Item added successfully",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to add item",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add item",
+        variant: "destructive",
+      })
     }
-    setGallery([...gallery, newItem])
   }
 
-  const updateGalleryItem = (id: number, field: string, value: string) => {
-    setGallery(gallery.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
-  }
+  const updateTeamMember = async (id: string, field: string, value: string) => {
+    if (!profileData) return
 
-  const removeGalleryItem = (id: number) => {
-    setGallery(gallery.filter((item) => item.id !== id))
-  }
-
-  const addPartnership = () => {
-    const newPartnership = {
-      id: Date.now(),
-      name: "",
-      logo: "",
-      description: "",
-      website: "",
-      startDate: "",
-    }
-    setPartnerships([...partnerships, newPartnership])
-  }
-
-  const updatePartnership = (id: number, field: string, value: string) => {
-    setPartnerships(partnerships.map((partner) => (partner.id === id ? { ...partner, [field]: value } : partner)))
-  }
-
-  const removePartnership = (id: number) => {
-    setPartnerships(partnerships.filter((partner) => partner.id !== id))
-  }
-
-  const addAward = () => {
-    const newAward = {
-      id: Date.now(),
-      name: "",
-      year: "",
-      organization: "",
-      description: "",
-    }
-    setAwards([...awards, newAward])
-  }
-
-  const updateAward = (id: number, field: string, value: string) => {
-    setAwards(awards.map((award) => (award.id === id ? { ...award, [field]: value } : award)))
-  }
-
-  const removeAward = (id: number) => {
-    setAwards(awards.filter((award) => award.id !== id))
-  }
-
-  const addSustainabilityInitiative = () => {
-    const newInitiative = {
-      id: Date.now(),
-      title: "",
-      description: "",
-      icon: "Leaf",
-      startDate: "",
-      impact: "",
-    }
-    setSustainabilityInitiatives([...sustainabilityInitiatives, newInitiative])
-  }
-
-  const updateSustainabilityInitiative = (id: number, field: string, value: string) => {
-    setSustainabilityInitiatives(
-      sustainabilityInitiatives.map((initiative) =>
-        initiative.id === id ? { ...initiative, [field]: value } : initiative,
-      ),
+    // Update local state immediately
+    const updatedMembers = profileData.teamMembers.map((member) =>
+      member.id === id ? { ...member, [field]: value } : member,
     )
+    setProfileData({ ...profileData, teamMembers: updatedMembers })
+
+    // Update on server
+    try {
+      const token = localStorage.getItem("token")
+      const member = profileData.teamMembers.find((m) => m.id === id)
+      if (!member) return
+
+      await fetch(`/api/profile/team/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...member,
+          [field]: value,
+        }),
+      })
+    } catch (error) {
+      console.error("Error updating team member:", error)
+    }
   }
 
-  const removeSustainabilityInitiative = (id: number) => {
-    setSustainabilityInitiatives(sustainabilityInitiatives.filter((initiative) => initiative.id !== id))
+  const removeTeamMember = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/api/profile/team/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        await fetchProfile() // Refresh data
+        toast({
+          title: "Success",
+          description: "Team member removed successfully",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove team member",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Certification functions
+  const updateCertification = async (id: string, field: string, value: string) => {
+    if (!profileData) return
+
+    const updatedCertifications = profileData.certifications.map((cert) =>
+      cert.id === id ? { ...cert, [field]: value } : cert,
+    )
+    setProfileData({ ...profileData, certifications: updatedCertifications })
+
+    try {
+      const token = localStorage.getItem("token")
+      const cert = profileData.certifications.find((c) => c.id === id)
+      if (!cert) return
+
+      await fetch(`/api/profile/certifications/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...cert,
+          [field]: value,
+        }),
+      })
+    } catch (error) {
+      console.error("Error updating certification:", error)
+    }
+  }
+
+  const removeCertification = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/api/profile/certifications/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        await fetchProfile()
+        toast({
+          title: "Success",
+          description: "Certification removed successfully",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove certification",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Gallery functions
+  const updateGalleryItem = async (id: string, field: string, value: string) => {
+    if (!profileData) return
+
+    const updatedGallery = profileData.gallery.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    setProfileData({ ...profileData, gallery: updatedGallery })
+
+    try {
+      const token = localStorage.getItem("token")
+      const item = profileData.gallery.find((g) => g.id === id)
+      if (!item) return
+
+      await fetch(`/api/profile/gallery/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...item,
+          [field]: value,
+        }),
+      })
+    } catch (error) {
+      console.error("Error updating gallery item:", error)
+    }
+  }
+
+  const removeGalleryItem = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/api/profile/gallery/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        await fetchProfile()
+        toast({
+          title: "Success",
+          description: "Gallery item removed successfully",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove gallery item",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Partnership functions
+  const updatePartnership = async (id: string, field: string, value: string) => {
+    if (!profileData) return
+
+    const updatedPartnerships = profileData.partnerships.map((partner) =>
+      partner.id === id ? { ...partner, [field]: value } : partner,
+    )
+    setProfileData({ ...profileData, partnerships: updatedPartnerships })
+
+    try {
+      const token = localStorage.getItem("token")
+      const partner = profileData.partnerships.find((p) => p.id === id)
+      if (!partner) return
+
+      await fetch(`/api/profile/partnerships/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...partner,
+          [field]: value,
+        }),
+      })
+    } catch (error) {
+      console.error("Error updating partnership:", error)
+    }
+  }
+
+  const removePartnership = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/api/profile/partnerships/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        await fetchProfile()
+        toast({
+          title: "Success",
+          description: "Partnership removed successfully",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove partnership",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Award functions
+  const updateAward = async (id: string, field: string, value: string) => {
+    if (!profileData) return
+
+    const updatedAwards = profileData.awards.map((award) => (award.id === id ? { ...award, [field]: value } : award))
+    setProfileData({ ...profileData, awards: updatedAwards })
+
+    try {
+      const token = localStorage.getItem("token")
+      const award = profileData.awards.find((a) => a.id === id)
+      if (!award) return
+
+      await fetch(`/api/profile/awards/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...award,
+          [field]: value,
+        }),
+      })
+    } catch (error) {
+      console.error("Error updating award:", error)
+    }
+  }
+
+  const removeAward = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/api/profile/awards/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        await fetchProfile()
+        toast({
+          title: "Success",
+          description: "Award removed successfully",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove award",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Sustainability functions
+  const updateSustainabilityInitiative = async (id: string, field: string, value: string) => {
+    if (!profileData) return
+
+    const updatedInitiatives = profileData.sustainabilityInitiatives.map((initiative) =>
+      initiative.id === id ? { ...initiative, [field]: value } : initiative,
+    )
+    setProfileData({ ...profileData, sustainabilityInitiatives: updatedInitiatives })
+
+    try {
+      const token = localStorage.getItem("token")
+      const initiative = profileData.sustainabilityInitiatives.find((s) => s.id === id)
+      if (!initiative) return
+
+      await fetch(`/api/profile/sustainability/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...initiative,
+          [field]: value,
+        }),
+      })
+    } catch (error) {
+      console.error("Error updating sustainability initiative:", error)
+    }
+  }
+
+  const removeSustainabilityInitiative = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/api/profile/sustainability/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        await fetchProfile()
+        toast({
+          title: "Success",
+          description: "Sustainability initiative removed successfully",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove sustainability initiative",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const renderAddDialog = () => {
+    const getDialogTitle = () => {
+      switch (activeTab) {
+        case "team":
+          return "Add Team Member"
+        case "certifications":
+          return "Add Certification"
+        case "gallery":
+          return "Add Photo"
+        case "partnerships":
+          return "Add Partnership"
+        case "awards":
+          return "Add Award"
+        case "sustainability":
+          return "Add Sustainability Initiative"
+        default:
+          return "Add Item"
+      }
+    }
+
+    const renderDialogContent = () => {
+      switch (activeTab) {
+        case "team":
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <Input
+                    value={newItemData.name || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, name: e.target.value })}
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Role/Position</Label>
+                  <Input
+                    value={newItemData.role || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, role: e.target.value })}
+                    placeholder="Tour Guide"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    value={newItemData.email || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, email: e.target.value })}
+                    placeholder="john@company.com"
+                    type="email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input
+                    value={newItemData.phone || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, phone: e.target.value })}
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Bio</Label>
+                <Textarea
+                  value={newItemData.bio || ""}
+                  onChange={(e) => setNewItemData({ ...newItemData, bio: e.target.value })}
+                  placeholder="Brief description of experience and expertise..."
+                  rows={3}
+                />
+              </div>
+            </div>
+          )
+
+        case "certifications":
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Certification Name</Label>
+                  <Input
+                    value={newItemData.name || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, name: e.target.value })}
+                    placeholder="Eco Tourism Certification"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Year</Label>
+                  <Input
+                    value={newItemData.year || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, year: e.target.value })}
+                    placeholder="2023"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Organization</Label>
+                  <Input
+                    value={newItemData.organization || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, organization: e.target.value })}
+                    placeholder="Tourism Board"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Certificate Number</Label>
+                  <Input
+                    value={newItemData.certificateNumber || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, certificateNumber: e.target.value })}
+                    placeholder="CERT-2023-001"
+                  />
+                </div>
+              </div>
+            </div>
+          )
+
+        case "gallery":
+          return (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Photo URL</Label>
+                <Input
+                  value={newItemData.url || ""}
+                  onChange={(e) => setNewItemData({ ...newItemData, url: e.target.value })}
+                  placeholder="https://example.com/photo.jpg"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Caption</Label>
+                <Input
+                  value={newItemData.caption || ""}
+                  onChange={(e) => setNewItemData({ ...newItemData, caption: e.target.value })}
+                  placeholder="Beautiful sunset at the mountain peak"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={newItemData.category || "general"}
+                  onValueChange={(value) => setNewItemData({ ...newItemData, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="tours">Tours</SelectItem>
+                    <SelectItem value="nature">Nature</SelectItem>
+                    <SelectItem value="team">Team</SelectItem>
+                    <SelectItem value="facilities">Facilities</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )
+
+        case "partnerships":
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Partner Name</Label>
+                  <Input
+                    value={newItemData.name || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, name: e.target.value })}
+                    placeholder="Local Wildlife Foundation"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Website</Label>
+                  <Input
+                    value={newItemData.website || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, website: e.target.value })}
+                    placeholder="https://partner.com"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={newItemData.description || ""}
+                  onChange={(e) => setNewItemData({ ...newItemData, description: e.target.value })}
+                  placeholder="Partnership description and benefits..."
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <Input
+                  value={newItemData.startDate || ""}
+                  onChange={(e) => setNewItemData({ ...newItemData, startDate: e.target.value })}
+                  type="date"
+                />
+              </div>
+            </div>
+          )
+
+        case "awards":
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Award Name</Label>
+                  <Input
+                    value={newItemData.name || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, name: e.target.value })}
+                    placeholder="Best Eco Tour Operator"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Year</Label>
+                  <Input
+                    value={newItemData.year || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, year: e.target.value })}
+                    placeholder="2023"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Organization</Label>
+                <Input
+                  value={newItemData.organization || ""}
+                  onChange={(e) => setNewItemData({ ...newItemData, organization: e.target.value })}
+                  placeholder="Tourism Excellence Awards"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={newItemData.description || ""}
+                  onChange={(e) => setNewItemData({ ...newItemData, description: e.target.value })}
+                  placeholder="Award description and significance..."
+                  rows={3}
+                />
+              </div>
+            </div>
+          )
+
+        case "sustainability":
+          return (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Initiative Title</Label>
+                <Input
+                  value={newItemData.title || ""}
+                  onChange={(e) => setNewItemData({ ...newItemData, title: e.target.value })}
+                  placeholder="Carbon Neutral Tours"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={newItemData.description || ""}
+                  onChange={(e) => setNewItemData({ ...newItemData, description: e.target.value })}
+                  placeholder="Describe the sustainability initiative..."
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Start Date</Label>
+                  <Input
+                    value={newItemData.startDate || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, startDate: e.target.value })}
+                    type="date"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Icon</Label>
+                  <Select
+                    value={newItemData.icon || "Leaf"}
+                    onValueChange={(value) => setNewItemData({ ...newItemData, icon: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select icon" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Leaf">Leaf</SelectItem>
+                      <SelectItem value="Globe">Globe</SelectItem>
+                      <SelectItem value="Star">Star</SelectItem>
+                      <SelectItem value="Heart">Heart</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Impact</Label>
+                <Textarea
+                  value={newItemData.impact || ""}
+                  onChange={(e) => setNewItemData({ ...newItemData, impact: e.target.value })}
+                  placeholder="Describe the positive impact..."
+                  rows={2}
+                />
+              </div>
+            </div>
+          )
+
+        default:
+          return <div>No form available for this section.</div>
+      }
+    }
+
+    return (
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{getDialogTitle()}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">{renderDialogContent()}</div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddItem} className="bg-gradient-to-r from-green-500 to-emerald-600">
+              Add Item
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
   }
 
   const containerVariants = {
@@ -250,6 +1025,26 @@ export default function AdminProfile() {
     },
   }
 
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </AdminLayout>
+    )
+  }
+
+  if (!profileData) {
+    return (
+      <AdminLayout>
+        <div className="text-center py-8">
+          <p>No profile data found. Please create an operator profile first.</p>
+        </div>
+      </AdminLayout>
+    )
+  }
+
   const renderBasicInfo = () => (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
       <motion.div variants={itemVariants}>
@@ -263,7 +1058,12 @@ export default function AdminProfile() {
                 <Label htmlFor="companyName" className="text-sm">
                   Company Name
                 </Label>
-                <Input id="companyName" defaultValue="EcoWander Adventures" className="rounded-xl" />
+                <Input
+                  id="companyName"
+                  value={profileData.companyName || ""}
+                  onChange={(e) => updateProfileField("companyName", e.target.value)}
+                  className="rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="tagline" className="text-sm">
@@ -271,7 +1071,8 @@ export default function AdminProfile() {
                 </Label>
                 <Input
                   id="tagline"
-                  defaultValue="Sustainable Adventures for Conscious Travelers"
+                  value={profileData.tagline || ""}
+                  onChange={(e) => updateProfileField("tagline", e.target.value)}
                   className="rounded-xl"
                 />
               </div>
@@ -283,7 +1084,8 @@ export default function AdminProfile() {
               </Label>
               <Textarea
                 id="description"
-                defaultValue="EcoWander Adventures is a leading sustainable tour operator with over 15 years of experience creating unforgettable eco-friendly journeys..."
+                value={profileData.description || ""}
+                onChange={(e) => updateProfileField("description", e.target.value)}
                 className="rounded-xl min-h-32"
                 rows={4}
               />
@@ -294,79 +1096,35 @@ export default function AdminProfile() {
                 <Label htmlFor="founded" className="text-sm">
                   Founded Year
                 </Label>
-                <Input id="founded" defaultValue="2010" className="rounded-xl" />
+                <Input
+                  id="founded"
+                  value={profileData.founded || ""}
+                  onChange={(e) => updateProfileField("founded", e.target.value)}
+                  className="rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="headquarters" className="text-sm">
                   Headquarters
                 </Label>
-                <Input id="headquarters" defaultValue="Vancouver, Canada" className="rounded-xl" />
+                <Input
+                  id="headquarters"
+                  value={profileData.headquarters || ""}
+                  onChange={(e) => updateProfileField("headquarters", e.target.value)}
+                  className="rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="employees" className="text-sm">
                   Number of Employees
                 </Label>
-                <Input id="employees" defaultValue="45" type="number" className="rounded-xl" />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <Label className="text-sm">Operating Regions</Label>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {["Europe", "Asia", "South America", "Oceania", "Africa"].map((region, index) => (
-                  <Badge
-                    key={index}
-                    className="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full cursor-pointer hover:bg-blue-100 text-sm"
-                  >
-                    {region}
-                    <X className="w-3 h-3 ml-2" />
-                  </Badge>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Input placeholder="Add new region" className="rounded-xl text-sm" />
-                <Button className="rounded-xl text-sm">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div variants={itemVariants}>
-        <Card className="border-2 border-gray-200 rounded-3xl">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Branding & Media</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <Label className="text-sm">Company Logo</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-2xl p-4 text-center hover:border-green-400 transition-colors">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-xl flex items-center justify-center">
-                    <ImageIcon className="h-10 w-10 text-gray-400" />
-                  </div>
-                  <Button className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Logo
-                  </Button>
-                  <p className="text-xs text-gray-500 mt-2">Recommended: 200x200px, PNG or JPG</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <Label className="text-sm">Cover Image</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-2xl p-4 text-center hover:border-green-400 transition-colors">
-                  <div className="w-full h-24 mx-auto mb-4 bg-gray-100 rounded-xl flex items-center justify-center">
-                    <ImageIcon className="h-12 w-12 text-gray-400" />
-                  </div>
-                  <Button className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Cover
-                  </Button>
-                  <p className="text-xs text-gray-500 mt-2">Recommended: 1920x600px, JPG</p>
-                </div>
+                <Input
+                  id="employees"
+                  value={profileData.employees || ""}
+                  onChange={(e) => updateProfileField("employees", Number.parseInt(e.target.value) || 0)}
+                  type="number"
+                  className="rounded-xl"
+                />
               </div>
             </div>
           </CardContent>
@@ -386,7 +1144,8 @@ export default function AdminProfile() {
                 </Label>
                 <Input
                   id="sustainabilityScore"
-                  defaultValue="92"
+                  value={profileData.sustainabilityScore || ""}
+                  onChange={(e) => updateProfileField("sustainabilityScore", Number.parseInt(e.target.value) || 0)}
                   type="number"
                   min="0"
                   max="100"
@@ -397,13 +1156,29 @@ export default function AdminProfile() {
                 <Label htmlFor="safetyRecord" className="text-sm">
                   Safety Record (%)
                 </Label>
-                <Input id="safetyRecord" defaultValue="98" type="number" min="0" max="100" className="rounded-xl" />
+                <Input
+                  id="safetyRecord"
+                  value={profileData.safetyRecord || ""}
+                  onChange={(e) => updateProfileField("safetyRecord", Number.parseInt(e.target.value) || 0)}
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="communityImpact" className="text-sm">
                   Local Community Impact (%)
                 </Label>
-                <Input id="communityImpact" defaultValue="87" type="number" min="0" max="100" className="rounded-xl" />
+                <Input
+                  id="communityImpact"
+                  value={profileData.communityImpact || ""}
+                  onChange={(e) => updateProfileField("communityImpact", Number.parseInt(e.target.value) || 0)}
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="customerSatisfaction" className="text-sm">
@@ -411,145 +1186,14 @@ export default function AdminProfile() {
                 </Label>
                 <Input
                   id="customerSatisfaction"
-                  defaultValue="96"
+                  value={profileData.customerSatisfaction || ""}
+                  onChange={(e) => updateProfileField("customerSatisfaction", Number.parseInt(e.target.value) || 0)}
                   type="number"
                   min="0"
                   max="100"
                   className="rounded-xl"
                 />
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </motion.div>
-  )
-
-  const renderContact = () => (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
-      <motion.div variants={itemVariants}>
-        <Card className="border-2 border-gray-200 rounded-3xl">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Contact Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm">
-                  Email Address
-                </Label>
-                <Input id="email" defaultValue="hello@ecowander.com" type="email" className="rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm">
-                  Phone Number
-                </Label>
-                <Input id="phone" defaultValue="+1 (555) 123-4567" className="rounded-xl" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address" className="text-sm">
-                Business Address
-              </Label>
-              <Textarea
-                id="address"
-                defaultValue="123 Nature Ave, Vancouver, BC, Canada"
-                className="rounded-xl"
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="website" className="text-sm">
-                Website URL
-              </Label>
-              <Input id="website" defaultValue="www.ecowander.com" className="rounded-xl" />
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div variants={itemVariants}>
-        <Card className="border-2 border-gray-200 rounded-3xl">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Social Media</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="facebook" className="text-sm">
-                  Facebook URL
-                </Label>
-                <Input id="facebook" defaultValue="facebook.com/ecowander" className="rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="instagram" className="text-sm">
-                  Instagram URL
-                </Label>
-                <Input id="instagram" defaultValue="instagram.com/ecowander" className="rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="twitter" className="text-sm">
-                  Twitter URL
-                </Label>
-                <Input id="twitter" defaultValue="twitter.com/ecowander" className="rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="linkedin" className="text-sm">
-                  LinkedIn URL
-                </Label>
-                <Input id="linkedin" placeholder="linkedin.com/company/ecowander" className="rounded-xl" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div variants={itemVariants}>
-        <Card className="border-2 border-gray-200 rounded-3xl">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Business Hours</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="timezone" className="text-sm">
-                  Timezone
-                </Label>
-                <Select>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select timezone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pst">Pacific Standard Time (PST)</SelectItem>
-                    <SelectItem value="est">Eastern Standard Time (EST)</SelectItem>
-                    <SelectItem value="gmt">Greenwich Mean Time (GMT)</SelectItem>
-                    <SelectItem value="cet">Central European Time (CET)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="emergencyContact" className="text-sm">
-                  24/7 Emergency Contact
-                </Label>
-                <Input id="emergencyContact" placeholder="+1 (555) 999-0000" className="rounded-xl" />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <Label className="text-sm">Operating Hours</Label>
-              {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => (
-                <div key={day} className="flex items-center space-x-4">
-                  <div className="w-24 font-medium text-sm">{day}</div>
-                  <Input placeholder="09:00" className="w-24 rounded-xl text-sm" />
-                  <span>to</span>
-                  <Input placeholder="17:00" className="w-24 rounded-xl text-sm" />
-                  <Button variant="outline" size="sm" className="rounded-xl text-sm">
-                    Closed
-                  </Button>
-                </div>
-              ))}
             </div>
           </CardContent>
         </Card>
@@ -561,13 +1205,19 @@ export default function AdminProfile() {
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
       <motion.div variants={itemVariants} className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Team Members</h2>
-        <Button onClick={addTeamMember} className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm">
+        <Button
+          onClick={() => {
+            resetNewItemData()
+            setShowAddDialog(true)
+          }}
+          className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Team Member
         </Button>
       </motion.div>
 
-      {teamMembers.map((member, index) => (
+      {profileData.teamMembers.map((member, index) => (
         <motion.div key={member.id} variants={itemVariants}>
           <Card className="border-2 border-gray-200 rounded-3xl">
             <CardHeader className="p-4">
@@ -667,12 +1317,91 @@ export default function AdminProfile() {
     </motion.div>
   )
 
+  const renderContact = () => (
+    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
+      <motion.div variants={itemVariants}>
+        <Card className="border-2 border-gray-200 rounded-3xl">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Contact Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm">
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  value={profileData?.email || ""}
+                  onChange={(e) => updateProfileField("email", e.target.value)}
+                  type="email"
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-sm">
+                  Phone Number
+                </Label>
+                <Input
+                  id="phone"
+                  value={profileData?.phone || ""}
+                  onChange={(e) => updateProfileField("phone", e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address" className="text-sm">
+                Address
+              </Label>
+              <Textarea
+                id="address"
+                value={profileData?.address || ""}
+                onChange={(e) => updateProfileField("address", e.target.value)}
+                className="rounded-xl"
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="website" className="text-sm">
+                  Website
+                </Label>
+                <Input
+                  id="website"
+                  value={profileData?.website || ""}
+                  onChange={(e) => updateProfileField("website", e.target.value)}
+                  type="url"
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="emergencyContact" className="text-sm">
+                  Emergency Contact
+                </Label>
+                <Input
+                  id="emergencyContact"
+                  value={profileData?.emergencyContact || ""}
+                  onChange={(e) => updateProfileField("emergencyContact", e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div>
+  )
+
   const renderCertifications = () => (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
       <motion.div variants={itemVariants} className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Certifications & Credentials</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Certifications</h2>
         <Button
-          onClick={addCertification}
+          onClick={() => {
+            resetNewItemData()
+            setShowAddDialog(true)
+          }}
           className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -680,7 +1409,7 @@ export default function AdminProfile() {
         </Button>
       </motion.div>
 
-      {certifications.map((cert, index) => (
+      {profileData?.certifications.map((cert, index) => (
         <motion.div key={cert.id} variants={itemVariants}>
           <Card className="border-2 border-gray-200 rounded-3xl">
             <CardHeader className="p-4">
@@ -698,17 +1427,17 @@ export default function AdminProfile() {
             </CardHeader>
             <CardContent className="space-y-4 p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Label className="text-sm">Certification Name</Label>
                   <Input
                     value={cert.name}
                     onChange={(e) => updateCertification(cert.id, "name", e.target.value)}
-                    placeholder="e.g., Certified Sustainable Tourism"
+                    placeholder="Certification Name"
                     className="rounded-xl text-sm"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Year Obtained</Label>
+                <div className="space-y-2">
+                  <Label className="text-sm">Year</Label>
                   <Input
                     value={cert.year}
                     onChange={(e) => updateCertification(cert.id, "year", e.target.value)}
@@ -716,38 +1445,23 @@ export default function AdminProfile() {
                     className="rounded-xl text-sm"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-sm">Issuing Organization</Label>
+                <div className="space-y-2">
+                  <Label className="text-sm">Organization</Label>
                   <Input
                     value={cert.organization}
                     onChange={(e) => updateCertification(cert.id, "organization", e.target.value)}
-                    placeholder="e.g., Global Sustainable Tourism Council"
+                    placeholder="Certifying Organization"
                     className="rounded-xl text-sm"
                   />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Label className="text-sm">Certificate Number</Label>
                   <Input
                     value={cert.certificateNumber}
                     onChange={(e) => updateCertification(cert.id, "certificateNumber", e.target.value)}
-                    placeholder="CST-2023-001"
+                    placeholder="Certificate Number"
                     className="rounded-xl text-sm"
                   />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm">Certificate Document</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-2xl p-4 text-center hover:border-green-400 transition-colors">
-                  <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <Button className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Certificate
-                  </Button>
-                  <p className="text-xs text-gray-500 mt-2">PDF, JPG, or PNG format</p>
                 </div>
               </div>
             </CardContent>
@@ -761,110 +1475,50 @@ export default function AdminProfile() {
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
       <motion.div variants={itemVariants} className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Photo Gallery</h2>
-        <Button onClick={addGalleryItem} className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm">
+        <Button
+          onClick={() => {
+            resetNewItemData()
+            setShowAddDialog(true)
+          }}
+          className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Photo
         </Button>
       </motion.div>
 
-      <motion.div variants={itemVariants}>
-        <Card className="border-2 border-gray-200 rounded-3xl">
-          <CardHeader className="p-4">
-            <CardTitle className="text-base font-bold">Bulk Upload</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:border-green-400 transition-colors">
-              <Camera className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Multiple Photos</h3>
-              <p className="text-gray-600 text-sm mb-4">Drag and drop your images here, or click to browse</p>
-              <Button className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Choose Images
-              </Button>
-              <p className="text-xs text-gray-500 mt-2">Supported formats: JPG, PNG, WebP. Max size: 10MB per image</p>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {gallery.map((item, index) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {profileData?.gallery.map((item) => (
           <motion.div key={item.id} variants={itemVariants}>
-            <Card className="border-2 border-gray-200 rounded-3xl">
-              <CardHeader className="p-4">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-base font-bold">Photo {index + 1}</CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeGalleryItem(item.id)}
-                    className="rounded-full text-red-600 hover:text-red-700 text-sm"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4 p-4">
-                <div className="aspect-video bg-gray-100 rounded-2xl overflow-hidden">
-                  {item.url ? (
-                    <img
-                      src={item.url || "/placeholder.svg"}
-                      alt={item.caption}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="h-12 w-12 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="space-y-1">
-                    <Label className="text-sm">Image URL or Upload</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={item.url}
-                        onChange={(e) => updateGalleryItem(item.id, "url", e.target.value)}
-                        placeholder="https://example.com/image.jpg"
-                        className="rounded-xl text-sm"
-                      />
-                      <Button variant="outline" className="rounded-xl text-sm">
-                        <Upload className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-sm">Caption</Label>
-                    <Input
-                      value={item.caption}
-                      onChange={(e) => updateGalleryItem(item.id, "caption", e.target.value)}
-                      placeholder="Describe this photo..."
-                      className="rounded-xl text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-sm">Category</Label>
-                    <Select
-                      value={item.category}
-                      onValueChange={(value) => updateGalleryItem(item.id, "category", value)}
-                    >
-                      <SelectTrigger className="rounded-xl text-sm">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="adventure">Adventure</SelectItem>
-                        <SelectItem value="culture">Culture</SelectItem>
-                        <SelectItem value="nature">Nature</SelectItem>
-                        <SelectItem value="accommodation">Accommodation</SelectItem>
-                        <SelectItem value="food">Food & Dining</SelectItem>
-                        <SelectItem value="team">Team</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+            <Card className="border-2 border-gray-200 rounded-3xl overflow-hidden">
+              <div className="aspect-video relative">
+                <img
+                  src={item.url || "/placeholder.svg?height=200&width=300"}
+                  alt={item.caption}
+                  className="w-full h-full object-cover"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => removeGalleryItem(item.id)}
+                  className="absolute top-2 right-2 rounded-full text-red-600 hover:text-red-700 bg-white/80"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <CardContent className="p-4 space-y-2">
+                <Input
+                  value={item.caption}
+                  onChange={(e) => updateGalleryItem(item.id, "caption", e.target.value)}
+                  placeholder="Photo caption..."
+                  className="rounded-xl text-sm"
+                />
+                <Input
+                  value={item.category}
+                  onChange={(e) => updateGalleryItem(item.id, "category", e.target.value)}
+                  placeholder="Category"
+                  className="rounded-xl text-sm"
+                />
               </CardContent>
             </Card>
           </motion.div>
@@ -876,14 +1530,20 @@ export default function AdminProfile() {
   const renderPartnerships = () => (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
       <motion.div variants={itemVariants} className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Partnerships & Collaborations</h2>
-        <Button onClick={addPartnership} className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm">
+        <h2 className="text-2xl font-bold text-gray-900">Partnerships</h2>
+        <Button
+          onClick={() => {
+            resetNewItemData()
+            setShowAddDialog(true)
+          }}
+          className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Partnership
         </Button>
       </motion.div>
 
-      {partnerships.map((partner, index) => (
+      {profileData?.partnerships.map((partner, index) => (
         <motion.div key={partner.id} variants={itemVariants}>
           <Card className="border-2 border-gray-200 rounded-3xl">
             <CardHeader className="p-4">
@@ -900,71 +1560,35 @@ export default function AdminProfile() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4 p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-sm">Partner Logo</Label>
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="w-20 h-20 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
-                      {partner.logo ? (
-                        <img
-                          src={partner.logo || "/placeholder.svg"}
-                          alt={partner.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <ImageIcon className="h-10 w-10 text-gray-400" />
-                      )}
-                    </div>
-                    <Button variant="outline" className="rounded-xl text-sm">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Logo
-                    </Button>
-                  </div>
+                  <Label className="text-sm">Partner Name</Label>
+                  <Input
+                    value={partner.name}
+                    onChange={(e) => updatePartnership(partner.id, "name", e.target.value)}
+                    placeholder="Partner Name"
+                    className="rounded-xl text-sm"
+                  />
                 </div>
-
-                <div className="md:col-span-2 space-y-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-sm">Organization Name</Label>
-                      <Input
-                        value={partner.name}
-                        onChange={(e) => updatePartnership(partner.id, "name", e.target.value)}
-                        placeholder="World Wildlife Fund"
-                        className="rounded-xl text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-sm">Partnership Start Date</Label>
-                      <Input
-                        value={partner.startDate}
-                        onChange={(e) => updatePartnership(partner.id, "startDate", e.target.value)}
-                        placeholder="2018"
-                        className="rounded-xl text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-sm">Website</Label>
-                    <Input
-                      value={partner.website}
-                      onChange={(e) => updatePartnership(partner.id, "website", e.target.value)}
-                      placeholder="https://www.partner.org"
-                      className="rounded-xl text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-sm">Partnership Description</Label>
-                    <Textarea
-                      value={partner.description}
-                      onChange={(e) => updatePartnership(partner.id, "description", e.target.value)}
-                      placeholder="Describe the nature of this partnership..."
-                      className="rounded-xl text-sm"
-                      rows={2}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Website</Label>
+                  <Input
+                    value={partner.website}
+                    onChange={(e) => updatePartnership(partner.id, "website", e.target.value)}
+                    placeholder="https://partner.com"
+                    className="rounded-xl text-sm"
+                  />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Description</Label>
+                <Textarea
+                  value={partner.description}
+                  onChange={(e) => updatePartnership(partner.id, "description", e.target.value)}
+                  placeholder="Partnership description and benefits..."
+                  className="rounded-xl text-sm"
+                  rows={2}
+                />
               </div>
             </CardContent>
           </Card>
@@ -977,13 +1601,19 @@ export default function AdminProfile() {
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
       <motion.div variants={itemVariants} className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Awards & Recognition</h2>
-        <Button onClick={addAward} className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm">
+        <Button
+          onClick={() => {
+            resetNewItemData()
+            setShowAddDialog(true)
+          }}
+          className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Award
         </Button>
       </motion.div>
 
-      {awards.map((award, index) => (
+      {profileData?.awards.map((award, index) => (
         <motion.div key={award.id} variants={itemVariants}>
           <Card className="border-2 border-gray-200 rounded-3xl">
             <CardHeader className="p-4">
@@ -1001,17 +1631,17 @@ export default function AdminProfile() {
             </CardHeader>
             <CardContent className="space-y-4 p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Label className="text-sm">Award Name</Label>
                   <Input
                     value={award.name}
                     onChange={(e) => updateAward(award.id, "name", e.target.value)}
-                    placeholder="Sustainable Tourism Excellence Award"
+                    placeholder="Award Name"
                     className="rounded-xl text-sm"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Year Received</Label>
+                <div className="space-y-2">
+                  <Label className="text-sm">Year</Label>
                   <Input
                     value={award.year}
                     onChange={(e) => updateAward(award.id, "year", e.target.value)}
@@ -1019,24 +1649,22 @@ export default function AdminProfile() {
                     className="rounded-xl text-sm"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Organization</Label>
+                  <Input
+                    value={award.organization}
+                    onChange={(e) => updateAward(award.id, "organization", e.target.value)}
+                    placeholder="Awarding Organization"
+                    className="rounded-xl text-sm"
+                  />
+                </div>
               </div>
-
-              <div className="space-y-1">
-                <Label className="text-sm">Awarding Organization</Label>
-                <Input
-                  value={award.organization}
-                  onChange={(e) => updateAward(award.id, "organization", e.target.value)}
-                  placeholder="World Travel Association"
-                  className="rounded-xl text-sm"
-                />
-              </div>
-
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <Label className="text-sm">Description</Label>
                 <Textarea
                   value={award.description}
                   onChange={(e) => updateAward(award.id, "description", e.target.value)}
-                  placeholder="Describe what this award recognizes..."
+                  placeholder="Award description..."
                   className="rounded-xl text-sm"
                   rows={2}
                 />
@@ -1053,7 +1681,10 @@ export default function AdminProfile() {
       <motion.div variants={itemVariants} className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Sustainability Initiatives</h2>
         <Button
-          onClick={addSustainabilityInitiative}
+          onClick={() => {
+            resetNewItemData()
+            setShowAddDialog(true)
+          }}
           className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -1061,7 +1692,7 @@ export default function AdminProfile() {
         </Button>
       </motion.div>
 
-      {sustainabilityInitiatives.map((initiative, index) => (
+      {profileData?.sustainabilityInitiatives.map((initiative, index) => (
         <motion.div key={initiative.id} variants={itemVariants}>
           <Card className="border-2 border-gray-200 rounded-3xl">
             <CardHeader className="p-4">
@@ -1079,90 +1710,49 @@ export default function AdminProfile() {
             </CardHeader>
             <CardContent className="space-y-4 p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Label className="text-sm">Initiative Title</Label>
                   <Input
                     value={initiative.title}
                     onChange={(e) => updateSustainabilityInitiative(initiative.id, "title", e.target.value)}
-                    placeholder="Carbon Offset Program"
+                    placeholder="Initiative Title"
                     className="rounded-xl text-sm"
                   />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Label className="text-sm">Start Date</Label>
                   <Input
                     value={initiative.startDate}
                     onChange={(e) => updateSustainabilityInitiative(initiative.id, "startDate", e.target.value)}
-                    placeholder="2019"
+                    type="date"
                     className="rounded-xl text-sm"
                   />
                 </div>
               </div>
-
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <Label className="text-sm">Description</Label>
                 <Textarea
                   value={initiative.description}
                   onChange={(e) => updateSustainabilityInitiative(initiative.id, "description", e.target.value)}
-                  placeholder="Describe this sustainability initiative..."
+                  placeholder="Initiative description..."
                   className="rounded-xl text-sm"
                   rows={2}
                 />
               </div>
-
-              <div className="space-y-1">
-                <Label className="text-sm">Impact/Results</Label>
-                <Input
+              <div className="space-y-2">
+                <Label className="text-sm">Impact</Label>
+                <Textarea
                   value={initiative.impact}
                   onChange={(e) => updateSustainabilityInitiative(initiative.id, "impact", e.target.value)}
-                  placeholder="15,000 tons CO2 offset annually"
+                  placeholder="Describe the impact..."
                   className="rounded-xl text-sm"
+                  rows={2}
                 />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-sm">Icon</Label>
-                <Select
-                  value={initiative.icon}
-                  onValueChange={(value) => updateSustainabilityInitiative(initiative.id, "icon", value)}
-                >
-                  <SelectTrigger className="rounded-xl text-sm">
-                    <SelectValue placeholder="Select icon" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Leaf">🌿 Leaf (Environmental)</SelectItem>
-                    <SelectItem value="Globe">🌍 Globe (Global Impact)</SelectItem>
-                    <SelectItem value="Users">👥 Users (Community)</SelectItem>
-                    <SelectItem value="Heart">❤️ Heart (Care)</SelectItem>
-                    <SelectItem value="Shield">🛡️ Shield (Protection)</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </CardContent>
           </Card>
         </motion.div>
       ))}
-
-      <motion.div variants={itemVariants}>
-        <Card className="border-2 border-green-200 rounded-3xl bg-gradient-to-br from-green-50 to-emerald-50">
-          <CardHeader className="p-4">
-            <CardTitle className="text-base font-bold text-green-800">Sustainability Report</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 p-4">
-            <p className="text-gray-600 text-sm">
-              Upload your annual sustainability report to showcase your environmental and social impact.
-            </p>
-            <div className="border-2 border-dashed border-green-300 rounded-2xl p-4 text-center hover:border-green-400 transition-colors">
-              <FileText className="h-8 w-8 text-green-500 mx-auto mb-2" />
-              <Button className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Report
-              </Button>
-              <p className="text-xs text-gray-500 mt-2">PDF format, max 50MB</p>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
     </motion.div>
   )
 
@@ -1170,133 +1760,47 @@ export default function AdminProfile() {
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
       <motion.div variants={itemVariants}>
         <Card className="border-2 border-gray-200 rounded-3xl">
-          <CardHeader className="p-4">
-            <CardTitle className="text-lg font-semibold">Profile Visibility</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Profile Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 p-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-              <div>
-                <div className="font-medium text-gray-900 text-sm">Public Profile</div>
-                <div className="text-sm text-gray-600">Make your profile visible to potential customers</div>
-              </div>
-              <Button variant="outline" className="rounded-xl text-sm">
-                Enabled
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-              <div>
-                <div className="font-medium text-gray-900 text-sm">Search Engine Indexing</div>
-                <div className="text-sm text-gray-600">Allow search engines to index your profile</div>
-              </div>
-              <Button variant="outline" className="rounded-xl text-sm">
-                Enabled
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-              <div>
-                <div className="font-medium text-gray-900 text-sm">Contact Form</div>
-                <div className="text-sm text-gray-600">Allow visitors to contact you through your profile</div>
-              </div>
-              <Button variant="outline" className="rounded-xl text-sm">
-                Enabled
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div variants={itemVariants}>
-        <Card className="border-2 border-gray-200 rounded-3xl">
-          <CardHeader className="p-4">
-            <CardTitle className="text-lg font-semibold">Verification Status</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center space-x-4 p-4 bg-green-50 rounded-xl border border-green-200">
-                <div className="bg-green-500 rounded-full p-2">
-                  <Shield className="h-5 w-5 text-white" />
-                </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium text-green-800 text-sm">Business Verified</div>
-                  <div className="text-sm text-green-600">Your business documents are verified</div>
+                  <Label className="text-sm font-medium">Public Profile</Label>
+                  <p className="text-xs text-gray-500">Make your profile visible to customers</p>
                 </div>
+                <input
+                  type="checkbox"
+                  checked={profileData?.isPublic || false}
+                  onChange={(e) => updateProfileField("isPublic", e.target.checked)}
+                  className="rounded"
+                />
               </div>
-
-              <div className="flex items-center space-x-4 p-4 bg-green-50 rounded-xl border border-green-200">
-                <div className="bg-green-500 rounded-full p-2">
-                  <User className="h-5 w-5 text-white" />
-                </div>
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium text-green-800 text-sm">Identity Verified</div>
-                  <div className="text-sm text-green-600">Your identity has been confirmed</div>
+                  <Label className="text-sm font-medium">Search Engine Indexing</Label>
+                  <p className="text-xs text-gray-500">Allow search engines to index your profile</p>
                 </div>
+                <input
+                  type="checkbox"
+                  checked={profileData?.allowSearchIndexing || false}
+                  onChange={(e) => updateProfileField("allowSearchIndexing", e.target.checked)}
+                  className="rounded"
+                />
               </div>
-
-              <div className="flex items-center space-x-4 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
-                <div className="bg-yellow-500 rounded-full p-2">
-                  <FileText className="h-5 w-5 text-white" />
-                </div>
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium text-yellow-800 text-sm">Insurance Pending</div>
-                  <div className="text-sm text-yellow-600">Upload insurance documents</div>
+                  <Label className="text-sm font-medium">Contact Form</Label>
+                  <p className="text-xs text-gray-500">Allow customers to contact you through your profile</p>
                 </div>
+                <input
+                  type="checkbox"
+                  checked={profileData?.allowContactForm || false}
+                  onChange={(e) => updateProfileField("allowContactForm", e.target.checked)}
+                  className="rounded"
+                />
               </div>
-
-              <div className="flex items-center space-x-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <div className="bg-blue-500 rounded-full p-2">
-                  <Award className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <div className="font-medium text-blue-800 text-sm">Premium Member</div>
-                  <div className="text-sm text-blue-600">Access to premium features</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div variants={itemVariants}>
-        <Card className="border-2 border-gray-200 rounded-3xl">
-          <CardHeader className="p-4">
-            <CardTitle className="text-lg font-semibold">Account Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 p-4">
-            <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-              <div>
-                <div className="font-medium text-gray-900 text-sm">Export Profile Data</div>
-                <div className="text-sm text-gray-600">Download all your profile information</div>
-              </div>
-              <Button variant="outline" className="rounded-xl text-sm">
-                <FileText className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-            </div>
-
-            <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-              <div>
-                <div className="font-medium text-gray-900 text-sm">Profile Backup</div>
-                <div className="text-sm text-gray-600">Create a backup of your profile</div>
-              </div>
-              <Button variant="outline" className="rounded-xl text-sm">
-                <Save className="h-4 w-4 mr-2" />
-                Backup
-              </Button>
-            </div>
-
-            <Separator />
-
-            <div className="flex justify-between items-center p-4 bg-red-50 rounded-xl border border-red-200">
-              <div>
-                <div className="font-medium text-red-800 text-sm">Delete Profile</div>
-                <div className="text-sm text-red-600">Permanently delete your operator profile</div>
-              </div>
-              <Button variant="outline" className="rounded-xl text-red-600 border-red-300 hover:bg-red-100 text-sm">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -1345,8 +1849,12 @@ export default function AdminProfile() {
                 Preview Profile
               </Button>
             </Link>
-            <Button className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg">
-              <Save className="h-4 w-4 mr-2" />
+            <Button
+              onClick={saveProfile}
+              disabled={saving}
+              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg"
+            >
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Changes
             </Button>
           </div>
@@ -1395,6 +1903,9 @@ export default function AdminProfile() {
           </div>
         </div>
       </div>
+
+      {/* Add Dialog */}
+      {renderAddDialog()}
     </AdminLayout>
   )
 }

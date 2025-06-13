@@ -21,6 +21,10 @@ import {
   Phone,
   User,
   AlertCircle,
+  PenIcon,
+  PhoneIcon,
+  UserCheck,
+  Eye,
 } from "lucide-react"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -87,14 +91,14 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
 
   // Function to get payment status badge color
   const getPaymentStatusColor = (status: string= "pending") => {
-    switch (status?.toLowerCase()) {
-      case "paid":
+    switch (status) {
+      case "COMPLETED":
         return "bg-green-100 text-green-800 border-green-200"
-      case "partial":
+      case "FAILED":
         return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "pending":
+      case "PENDING":
         return "bg-orange-100 text-orange-800 border-orange-200"
-      case "refunded":
+      case "REFUNDED":
         return "bg-red-100 text-red-800 border-red-200"
       default:
         return "bg-gray-100 text-gray-800 border-gray-200"
@@ -106,14 +110,14 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
     return (
       <AdminLayout>
         <div className="space-y-6">
+        <Link href="/admin/bookings">
+          <Button variant="ghost" size="sm" className="text-gray-600">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Bookings
+          </Button>
+        </Link>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/admin/bookings">
-                <Button variant="ghost" size="sm" className="text-gray-600">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Bookings
-                </Button>
-              </Link>
               <div>
                 <Skeleton className="h-8 w-48" />
                 <Skeleton className="h-4 w-32 mt-2" />
@@ -274,24 +278,20 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
+        <Link href="/admin/bookings">
+          <Button variant="ghost" size="sm" className="text-gray-600">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Bookings
+          </Button>
+        </Link>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Link href="/admin/bookings">
-              <Button variant="ghost" size="sm" className="text-gray-600">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Bookings
-              </Button>
-            </Link>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Booking Details</h1>
               <p className="text-gray-500">Booking ID: {booking.id}</p>
             </div>
           </div>
           <div className="flex space-x-3">
-            <Button variant="outline" className="text-gray-600">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
             <Button variant="outline" className="text-gray-600">
               <Mail className="h-4 w-4 mr-2" />
               Send Email
@@ -406,36 +406,36 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
             </Card>
 
             {/* Tabs Section */}
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200 my-6">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="w-full justify-start border-b border-gray-200 bg-transparent h-auto p-0">
                   <TabsTrigger
                     value="travelers"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-6 py-3"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-green-600 data-[state=active]:bg-green-50 rounded-none px-6 py-3"
                   >
                     Travelers
                   </TabsTrigger>
                   <TabsTrigger
                     value="itinerary"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-6 py-3"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-green-600 data-[state=active]:bg-green-50 rounded-none px-6 py-3"
                   >
                     Itinerary
                   </TabsTrigger>
                   <TabsTrigger
                     value="payments"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-6 py-3"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-green-600 data-[state=active]:bg-green-50 rounded-none px-6 py-3"
                   >
                     Payments
                   </TabsTrigger>
                   <TabsTrigger
                     value="requests"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-6 py-3"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-green-600 data-[state=active]:bg-green-50 rounded-none px-6 py-3"
                   >
                     Requests
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="travelers" className="p-6">
+                <TabsContent value="travelers" className="p-6 ">
                   {booking.travelers && booking.travelers.length > 0 ? (
                     <div className="space-y-4">
                       {booking.travelers.map((traveler: any) => (
@@ -443,15 +443,26 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
                           key={traveler.id}
                           className="flex items-center justify-between py-4 border-b border-gray-100 last:border-b-0"
                         >
-                          <div className="    flex items-center space-x-4">
+                          <div className="    flex items-start space-x-4">
                             <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
                               <User className="h-5 w-5 text-blue-600" />
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900">{traveler.name}</p>
-                              <p className="text-sm text-gray-600">
-                                {traveler.age} years • {traveler.gender}
-                              </p>
+                              <div className="flex items-center space-x-2">
+                                <MapPin className="w-4"/>
+                                <p className=" text-sm text-gray-600">{traveler.nationality}</p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <PhoneIcon className="w-4"/>
+                                 <p className=" text-sm text-gray-600">{traveler.phone}</p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <UserCheck className="w-4"/>
+                                <p className="text-sm text-gray-600">
+                                  {traveler.age} years • {traveler.gender}
+                                </p>
+                              </div>
                             </div>
                           </div>
                           {traveler.specialRequirements && (
@@ -530,6 +541,15 @@ export default function BookingDetails({ params }: BookingDetailsProps) {
                             <Badge className={getPaymentStatusColor(payment.status)+" text-xs"}>
                               {payment.status}
                             </Badge>
+                          </div>
+                          <div className="flex flex-col">
+                            <p className="text-gray-800 text-sm font-medium">Action</p>
+                             <Link href={`/admin/payments/${payment.id}`}>
+                              <Button variant="outline" className="w-full justify-start text-sm">
+                                <Eye className="h-4 w-4 mr-2" />
+                                View details
+                             </Button>
+                             </Link>
                           </div>
                         </div>
                       ))}

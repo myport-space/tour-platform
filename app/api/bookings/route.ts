@@ -108,6 +108,8 @@ export async function GET(request: NextRequest) {
     })
     
 
+     
+
     // Transform data for frontend
     const transformedBookings = bookings.map((booking) => ({
       id: booking.id,
@@ -124,7 +126,6 @@ export async function GET(request: NextRequest) {
       totalAmount: booking.totalAmount,
       paidAmount: booking.paidAmount,
       status: booking.status,
-      paymentStatus: booking.payments.filter((py:any)=> py.status == "PAID") ? "Paid" : "Pending",
       bookingDate: booking.createdAt.toISOString().split("T")[0],
       departureDate: booking.spot?.departureDate ? booking.spot.departureDate.toISOString().split("T")[0] : null,
       specialRequests: booking.specialRequests || null,
@@ -148,4 +149,82 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching bookings:", error)
     return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 })
   }
+}
+
+
+export async function POST(request: NextRequest) {
+  try {
+     // Verify authentication
+   
+    let booking = await prisma.booking.create({
+      data:{
+        bookingNumber: `BK-${Date.now()}`,
+        seats:2, 
+        totalAmount:(1299*2),
+        currency:"USD",
+        customerId:"cmbtow2ao000lvlcgw1540dpd",
+        tourId:"cmbtod7z1000avlcgkdcnwh07",
+        spotId:"cmbtod8yl000cvlcgvi2txx6p",
+        payments:{
+          create:{
+            amount: (1299*2),
+            currency: "USD", 
+            method:"PAYPAL",
+            customerId:"cmbtow2ao000lvlcgw1540dpd",
+            paymentIntentId:"PY28723",
+            transactionId:"TRX123456789",
+            status:"COMPLETED",
+          }
+        },
+        paidAmount:(1299*2),
+        status:"CONFIRMED",
+        specialRequests:"No special requests",
+        
+        travelers:{
+          createMany: {
+            data: [
+              {
+                firstName: "Muhammad",
+                lastName: "Ali",
+                email: "muhammahdali2098@gmail.com",
+                phone: "1234567890",
+                dateOfBirth:new Date("2000-01-01"),
+                emergencyContact: "+9234567890",
+                nationality: "Pakistani",
+                passportNumber: "142230298309182"
+              },
+              {
+                firstName: "Hassan",
+                lastName: "Abbas",
+                email: "abbaskhan@gmail.com",
+                phone: "+9273827987",
+                dateOfBirth: new Date("1998-05-15"),
+                emergencyContact: "+9234567890",
+                nationality: "Pakistani",
+                passportNumber: "29837918237987s"
+              }
+            ]
+          }
+          
+        }
+        
+      }
+    })
+
+    // Just for testing,
+    const spot = await prisma.spot.update({
+      where:{
+        id:"cmbtod8yl000cvlcgvi2txx6p",
+      },
+      data:{
+        bookedSeats:2,
+      }
+    })
+    return NextResponse.json({message:"Booking created successfully", booking}, { status: 201 })
+  } catch (error) {
+    console.error("Error creating booking:", error)
+    return NextResponse.json({ error: "Failed to create booking" }, { status: 500 })
+    
+  }
+
 }

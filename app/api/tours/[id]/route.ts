@@ -30,6 +30,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             spots:{
                 include:{
                     bookings:{
+                        where:{
+                            AND:[
+                                {status:{not:"CANCELLED"}},
+                                {status:{not:"REFUNDED"}}
+                            ]
+                        },
                         include:{
                             customer:true,
                             travelers:true,
@@ -51,7 +57,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const tourStats = {
         totalBookings: tour?.bookings?.length || 0,
-        totalTravelers: tour?.spots.reduce((sum,b)=>sum + (b.bookedSeats||0),0) ||0,
+        totalTravelers: tour?.spots.reduce(
+            (sum, spot) =>
+                sum +
+                (spot.bookings
+                    ? spot.bookings.reduce((s, booking) => s + (booking.travelers ? booking.travelers.length : 0), 0)
+                    : 0),
+            0
+        ) || 0,
         totalRevenue: tour?.bookings?.reduce((sum, b) => sum + (b.paidAmount || 0), 0) || 0,
         totalSpots: tour?.spots?.length || 0,
     };

@@ -270,7 +270,9 @@ export default function SpotsManagementPage() {
                   <CardHeader className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-lg text-gray-900 line-clamp-1">{spot.tourTitle}</h3>
+                        <Link href={`/admin/tours/${spot.tourId}`} className="hover:underline text-gray-900 hover:text-green-500">
+                          <h3 className="font-semibold text-lg  line-clamp-1">{spot.tourTitle}</h3>
+                        </Link>
                         <div className="flex items-center text-sm text-gray-500 mt-1">
                           <MapPin className="h-4 w-4 mr-1" />
                           {spot.tourLocation}

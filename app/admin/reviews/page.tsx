@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useEffect } from "react"
 
 export default function ReviewsPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -42,114 +43,82 @@ export default function ReviewsPage() {
   const [replyReviewId, setReplyReviewId] = useState<number | null>(null)
   const [flagReviewId, setFlagReviewId] = useState<number | null>(null)
 
-  const reviews = [
-    {
-      id: 1,
-      customer: {
-        name: "Sarah Johnson",
-        avatar: "/placeholder.svg?height=40&width=40",
-      },
-      tour: {
-        title: "Santorini Sunset Paradise",
-        location: "Santorini, Greece",
-      },
-      rating: 5,
-      title: "Absolutely magical experience!",
-      content:
-        "This tour exceeded all my expectations. The sunset views were breathtaking, the accommodation was luxurious, and our guide was incredibly knowledgeable. Every detail was perfectly planned. I would definitely book with EcoWander again!",
-      date: "2024-03-20",
-      status: "Published",
-      helpful: 12,
-      hasResponse: true,
-      response:
-        "Thank you so much for your wonderful review, Sarah! We're thrilled that you had such a magical experience in Santorini. We look forward to welcoming you on another adventure soon!",
-      verified: true,
-    },
-    {
-      id: 2,
-      customer: {
-        name: "Michael Chen",
-        avatar: "/placeholder.svg?height=40&width=40",
-      },
-      tour: {
-        title: "Swiss Alps Adventure",
-        location: "Interlaken, Switzerland",
-      },
-      rating: 4,
-      title: "Great adventure, minor issues",
-      content:
-        "Overall a fantastic trip! The hiking trails were amazing and the scenery was spectacular. The only downside was that one of the planned activities was cancelled due to weather, but the team did their best to provide alternatives.",
-      date: "2024-03-18",
-      status: "Published",
-      helpful: 8,
-      hasResponse: false,
-      verified: true,
-    },
-    {
-      id: 3,
-      customer: {
-        name: "Emma Wilson",
-        avatar: "/placeholder.svg?height=40&width=40",
-      },
-      tour: {
-        title: "Bali Cultural Journey",
-        location: "Ubud, Bali",
-      },
-      rating: 5,
-      title: "Life-changing cultural immersion",
-      content:
-        "This wasn't just a tour, it was a transformative experience. Learning about Balinese traditions, participating in local ceremonies, and staying with host families gave me such deep insights into the culture. Highly recommended!",
-      date: "2024-03-15",
-      status: "Pending",
-      helpful: 15,
-      hasResponse: false,
-      verified: true,
-    },
-    {
-      id: 4,
-      customer: {
-        name: "David Rodriguez",
-        avatar: "/placeholder.svg?height=40&width=40",
-      },
-      tour: {
-        title: "Iceland Northern Lights",
-        location: "Reykjavik, Iceland",
-      },
-      rating: 3,
-      title: "Good but not great",
-      content:
-        "The Northern Lights were incredible when we finally saw them on the last night. However, the accommodation was not as described and the food options were limited. The guide was friendly but seemed inexperienced.",
-      date: "2024-03-12",
-      status: "Flagged",
-      helpful: 3,
-      hasResponse: true,
-      response:
-        "Thank you for your feedback, David. We apologize for the issues with accommodation and will address this with our local partners. We're glad you were able to see the Northern Lights and appreciate your honest review.",
-      verified: true,
-    },
-    {
-      id: 5,
-      customer: {
-        name: "Lisa Thompson",
-        avatar: "/placeholder.svg?height=40&width=40",
-      },
-      tour: {
-        title: "Tokyo Food & Culture",
-        location: "Tokyo, Japan",
-      },
-      rating: 5,
-      title: "Foodie paradise!",
-      content:
-        "As a food enthusiast, this tour was perfect for me. We visited hidden local restaurants, learned to make sushi, and explored traditional markets. The cultural sites were beautiful too. Worth every penny!",
-      date: "2024-03-10",
-      status: "Published",
-      helpful: 20,
-      hasResponse: true,
-      response:
-        "We're so happy you enjoyed the culinary journey through Tokyo, Lisa! Our local food experts love sharing their passion for Japanese cuisine with fellow food enthusiasts.",
-      verified: true,
-    },
-  ]
+  type Review = {
+    id: number | string
+    customer: {
+      name: string
+      avatar?: string
+    }
+    verified?: boolean
+    status: string
+    rating: number
+    date: string
+    tour: {
+      title: string
+      location: string
+    }
+    title: string
+    content: string
+    helpful: number
+    hasResponse?: boolean
+    response?: string
+  }
+
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchReviews()
+  }, [searchTerm, ratingFilter, statusFilter])
+
+  const fetchReviews = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (searchTerm) params.append("search", searchTerm)
+      if (ratingFilter !== "all") params.append("rating", ratingFilter)
+      if (statusFilter !== "all") params.append("status", statusFilter)
+
+      const response = await fetch(`/api/reviews?${params.toString()}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setReviews(data.data)
+      } else {
+        console.error("Failed to fetch reviews:", data.error)
+      }
+    } catch (error) {
+      console.error("Error fetching reviews:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleReplySubmit = async (reviewId: string, replyMessage: string) => {
+    try {
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reviewId,
+          response: replyMessage,
+        }),
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        // Refresh reviews after successful reply
+        fetchReviews()
+        setReplyReviewId(null)
+      }
+    } catch (error) {
+      console.error("Error sending reply:", error)
+    }
+  }
+
+  
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -170,16 +139,7 @@ export default function ReviewsPage() {
     ))
   }
 
-  const filteredReviews = reviews.filter((review) => {
-    const matchesSearch =
-      review.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.tour.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.content.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesRating = ratingFilter === "all" || review.rating.toString() === ratingFilter
-    const matchesStatus = statusFilter === "all" || review.status.toLowerCase() === statusFilter
-
-    return matchesSearch && matchesRating && matchesStatus
-  })
+  const filteredReviews = reviews
 
   const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
 
@@ -299,124 +259,138 @@ export default function ReviewsPage() {
         </Card>
 
         {/* Reviews List */}
-        <div className="space-y-6">
-          {filteredReviews.map((review, index) => (
-            <motion.div
-              key={review.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
-            >
-              <Card className="border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    {/* Review Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={review.customer.avatar || "/placeholder.svg"} alt={review.customer.name} />
-                          <AvatarFallback>
-                            {review.customer.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <h3 className="font-semibold text-gray-900">{review.customer.name}</h3>
-                            {review.verified && (
-                              <Badge variant="secondary" className="text-xs">
-                                Verified
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-2 text-sm text-gray-500">Loading reviews...</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {filteredReviews.map((review, index) => (
+              <motion.div
+                key={review.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+              >
+                <Card className="border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      {/* Review Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage
+                              src={review.customer.avatar || "/placeholder.svg"}
+                              alt={review.customer.name}
+                            />
+                            <AvatarFallback>
+                              {review.customer.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h3 className="font-semibold text-gray-900">{review.customer.name}</h3>
+                              {review.verified && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Verified
+                                </Badge>
+                              )}
+                              <Badge
+                                className={`${getStatusColor(review.status)} border rounded-full px-2 py-1 text-xs`}
+                              >
+                                {review.status}
                               </Badge>
-                            )}
-                            <Badge className={`${getStatusColor(review.status)} border rounded-full px-2 py-1 text-xs`}>
-                              {review.status}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center space-x-2 mb-2">
-                            <div className="flex items-center">{renderStars(review.rating)}</div>
-                            <span className="text-sm text-gray-500">•</span>
-                            <span className="text-sm text-gray-500">{new Date(review.date).toLocaleDateString()}</span>
-                          </div>
-                          <div className="flex items-center text-sm text-gray-500">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            {review.tour.title} - {review.tour.location}
+                            </div>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className="flex items-center">{renderStars(review.rating)}</div>
+                              <span className="text-sm text-gray-500">•</span>
+                              <span className="text-sm text-gray-500">
+                                {new Date(review.date).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center text-sm text-gray-500">
+                              <MapPin className="h-4 w-4 mr-1" />
+                              {review.tour.title} - {review.tour.location}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-lg"
-                          onClick={() => setViewReviewId(review.id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-lg"
-                          onClick={() => setFlagReviewId(review.id)}
-                        >
-                          <Flag className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Review Content */}
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">{review.title}</h4>
-                      <p className="text-gray-700 leading-relaxed">{review.content}</p>
-                    </div>
-
-                    {/* Review Actions */}
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center text-sm text-gray-500">
-                          <ThumbsUp className="h-4 w-4 mr-1" />
-                          {review.helpful} helpful
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {!review.hasResponse && (
+                        <div className="flex items-center space-x-2">
                           <Button
                             variant="outline"
                             size="sm"
                             className="rounded-lg"
-                            onClick={() => setReplyReviewId(review.id)}
+                            onClick={() => setViewReviewId(Number(review.id))}
                           >
-                            <Reply className="h-4 w-4 mr-2" />
-                            Reply
+                            <Eye className="h-4 w-4" />
                           </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Admin Response */}
-                    {review.hasResponse && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="bg-blue-500 rounded-full p-1">
-                            <Reply className="h-3 w-3 text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <span className="font-medium text-blue-900">EcoWander Team</span>
-                              <span className="text-xs text-blue-600">Admin Response</span>
-                            </div>
-                            <p className="text-blue-800 text-sm">{review.response}</p>
-                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-lg"
+                            onClick={() => setFlagReviewId(Number(review.id))}
+                          >
+                            <Flag className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
+
+                      {/* Review Content */}
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-2">{review.title}</h4>
+                        <p className="text-gray-700 leading-relaxed">{review.content}</p>
+                      </div>
+
+                      {/* Review Actions */}
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center text-sm text-gray-500">
+                            <ThumbsUp className="h-4 w-4 mr-1" />
+                            {review.helpful} helpful
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {!review.hasResponse && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg"
+                              onClick={() => setReplyReviewId(Number(review.id))}
+                            >
+                              <Reply className="h-4 w-4 mr-2" />
+                              Reply
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Admin Response */}
+                      {review.hasResponse && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="bg-blue-500 rounded-full p-1">
+                              <Reply className="h-3 w-3 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="font-medium text-blue-900">EcoWander Team</span>
+                                <span className="text-xs text-blue-600">Admin Response</span>
+                              </div>
+                              <p className="text-blue-800 text-sm">{review.response}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
         {filteredReviews.length === 0 && (
@@ -488,7 +462,17 @@ export default function ReviewsPage() {
                 <Button variant="outline" onClick={() => setReplyReviewId(null)}>
                   Cancel
                 </Button>
-                <Button className="bg-green-600 hover:bg-green-700">Send Reply</Button>
+                <Button
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => {
+                    const textarea = document.getElementById("reply-message") as HTMLTextAreaElement
+                    if (textarea && replyReviewId) {
+                      handleReplySubmit(replyReviewId.toString(), textarea.value)
+                    }
+                  }}
+                >
+                  Send Reply
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

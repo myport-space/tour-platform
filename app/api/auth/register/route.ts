@@ -18,15 +18,8 @@ export async function POST(request: NextRequest) {
       role = "OPERATOR",
       companyName,
       description,
-      address,
-      city, 
-      country,
-      website,
-      companyPhone,
-      businessLicense,
-      experience,
-      specializations = [],
-      languages = [],
+      address, 
+      website, 
     } = body
 
     // Validate required fields
@@ -81,14 +74,8 @@ export async function POST(request: NextRequest) {
     await prisma.tourOperator.create({
        data:{
             companyName,
-            companyDescription:description,
-            companyWebsite:website,
-            companyAddress:address,
-            companyCity:city,
-            companyCountry:country,
-            
-            specializations: specializations || [],
-            languages: languages || [],
+            website:website,
+            address:address,            
             userId:user.id
        }
     })

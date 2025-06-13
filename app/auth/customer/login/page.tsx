@@ -1,18 +1,19 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Users, CheckCircle } from "lucide-react"
+import { toast } from "sonner"
 
-export default function LoginPage() {
+export default function CustomerLoginPage() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -21,7 +22,17 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showRegistrationSuccess, setShowRegistrationSuccess] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    // Check if user just registered
+    if (searchParams.get("registered") === "true") {
+      setShowRegistrationSuccess(true)
+      toast.success("Account created successfully! Please log in.")
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,7 +40,7 @@ export default function LoginPage() {
     setError("")
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/customer/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -39,7 +50,7 @@ export default function LoginPage() {
           password: formData.password,
           rememberMe: formData.rememberMe,
         }),
-        credentials: "include", // CRITICAL: This ensures cookies are sent/received
+        credentials: "include",
       })
 
       const data = await response.json()
@@ -48,24 +59,17 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed")
       }
 
-      // Store token based on remember me preference
-      if (formData.rememberMe) {
-        localStorage.setItem("auth_token", data.token)
-      } else {
-        sessionStorage.setItem("auth_token", data.token)
-      }
+      // Store customer data and token
+      localStorage.setItem("customer_data", JSON.stringify(data.customer))
+      localStorage.setItem("cus_token", data.token)
 
-      document.cookie = `auth_token=${data.token}; path=/; secure; samesite=strict`
+      toast.success("Login successful!")
 
-      localStorage.setItem("user_role", data.user.role)
-      // Store user data in localStorage for client-side access
-      localStorage.setItem("user_data", JSON.stringify(data.user))
-
-      // The auth-token cookie is automatically set by the server response
-      // Force a page reload to ensure middleware picks up the cookie
-      window.location.href = data.user.role === "OPERATOR" ? "/admin" : "/"
+      // Redirect to customer dashboard or back to admin
+      router.push("/admin/customers")
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.")
+      toast.error(err.message || "Login failed")
     } finally {
       setIsLoading(false)
     }
@@ -80,17 +84,27 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-green-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p className="text-gray-600">Sign in to your tour operator account</p>
+          <Users className="mx-auto h-12 w-12 text-blue-600 mb-4" />
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Customer Login</h1>
+          <p className="text-gray-600">Sign in to customer account</p>
         </div>
+
+        {showRegistrationSuccess && (
+          <Alert className="mb-6 border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              Account created successfully! Please log in with your credentials.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
-            <CardDescription className="text-center">Enter your credentials to access your dashboard</CardDescription>
+            <CardTitle className="text-2xl font-bold text-center">Customer Sign In</CardTitle>
+            <CardDescription className="text-center">Enter customer credentials to access account</CardDescription>
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
@@ -107,7 +121,7 @@ export default function LoginPage() {
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="Enter your email"
+                    placeholder="Enter customer email"
                     value={formData.email}
                     onChange={handleInputChange}
                     className="pl-10"
@@ -124,7 +138,7 @@ export default function LoginPage() {
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder="Enter password"
                     value={formData.password}
                     onChange={handleInputChange}
                     className="pl-10 pr-10"
@@ -140,27 +154,22 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="rememberMe"
-                    name="rememberMe"
-                    checked={formData.rememberMe}
-                    onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, rememberMe: checked as boolean }))}
-                    className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
-                  />
-                  <Label htmlFor="rememberMe" className="text-sm">
-                    Remember me
-                  </Label>
-                </div>
-                <Link href="/auth/forgot-password" className="text-sm text-green-600 hover:underline">
-                  Forgot password?
-                </Link>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="rememberMe"
+                  name="rememberMe"
+                  checked={formData.rememberMe}
+                  onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, rememberMe: checked as boolean }))}
+                  className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                />
+                <Label htmlFor="rememberMe" className="text-sm">
+                  Remember me for 30 days
+                </Label>
               </div>
             </CardContent>
 
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full bg-green-500 hover:bg-green-600" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-blue-500 hover:bg-blue-600" disabled={isLoading}>
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -175,16 +184,27 @@ export default function LoginPage() {
               </Button>
 
               <div className="text-center text-sm text-gray-600">
-                Don't have an account?{" "}
-                <Link href="/auth/signup" className="text-green-600 hover:underline font-medium">
-                  Sign up here
+                Don't have a customer account?{" "}
+                <Link href="/auth/customer/register" className="text-blue-600 hover:underline font-medium">
+                  Create one here
                 </Link>
               </div>
             </CardFooter>
           </form>
         </Card>
- 
+
+        <div className="mt-8 text-center">
+          <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 mb-4">
+            <p className="text-xs text-gray-500 mb-2">Demo Customer Credentials:</p>
+            <p className="text-xs text-gray-600">Email: customer@example.com</p>
+            <p className="text-xs text-gray-600">Password: password123</p>
+          </div>
+
+          <Link href="/admin" className="text-sm text-gray-500 hover:text-gray-700">
+            ← Back to Admin Dashboard
+          </Link>
+        </div>
       </div>
     </div>
   )
-} 
+}

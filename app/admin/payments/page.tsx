@@ -1,136 +1,115 @@
 "use client"
 
-import { useState } from "react"
-import { RefreshCw, AlertCircle, CheckCircle, Clock, XCircle, Search, Download, Eye } from "lucide-react"
+import { useState, useEffect } from "react"
+import { RefreshCw, AlertCircle, CheckCircle, Clock, XCircle, Search, Download, Eye, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import AdminLayout from "@/components/AdminLayout"
+import { useToast } from "@/hooks/use-toast"
+
+interface Payment {
+  id: string
+  transactionId: string
+  customer: {
+    name: string
+    email: string
+    avatar: string
+  }
+  booking: {
+    id: string
+    tour: string
+  }
+  amount: number
+  method: string
+  status: string
+  date: string
+  processingFee: number
+  netAmount: number
+  currency: string
+  gateway: string
+}
+
+interface PaymentStats {
+  totalRevenue: number
+  totalFees: number
+  pendingAmount: number
+  totalTransactions: number
+}
 
 export default function PaymentsPage() {
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [methodFilter, setMethodFilter] = useState("all")
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [stats, setStats] = useState<PaymentStats>({
+    totalRevenue: 0,
+    totalFees: 0,
+    pendingAmount: 0,
+    totalTransactions: 0,
+  })
+  const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [limit] = useState(10)
 
-  const payments = [
-    {
-      id: "PAY001",
-      transactionId: "TXN123456789",
-      customer: {
-        name: "Sarah Johnson",
-        email: "sarah.johnson@email.com",
-        avatar: "/placeholder.svg?height=40&width=40",
-      },
-      booking: {
-        id: "BK001",
-        tour: "Santorini Sunset Paradise",
-      },
-      amount: 2598,
-      method: "Credit Card",
-      status: "Completed",
-      date: "2024-03-20",
-      processingFee: 77.94,
-      netAmount: 2520.06,
-      currency: "USD",
-      gateway: "Stripe",
-    },
-    {
-      id: "PAY002",
-      transactionId: "TXN123456790",
-      customer: {
-        name: "Michael Chen",
-        email: "michael.chen@email.com",
-        avatar: "/placeholder.svg?height=40&width=40",
-      },
-      booking: {
-        id: "BK002",
-        tour: "Swiss Alps Adventure",
-      },
-      amount: 1798,
-      method: "PayPal",
-      status: "Pending",
-      date: "2024-03-19",
-      processingFee: 53.94,
-      netAmount: 1744.06,
-      currency: "USD",
-      gateway: "PayPal",
-    },
-    {
-      id: "PAY003",
-      transactionId: "TXN123456791",
-      customer: {
-        name: "Emma Wilson",
-        email: "emma.wilson@email.com",
-        avatar: "/placeholder.svg?height=40&width=40",
-      },
-      booking: {
-        id: "BK003",
-        tour: "Bali Cultural Journey",
-      },
-      amount: 799,
-      method: "Bank Transfer",
-      status: "Failed",
-      date: "2024-03-18",
-      processingFee: 0,
-      netAmount: 0,
-      currency: "USD",
-      gateway: "Bank",
-    },
-    {
-      id: "PAY004",
-      transactionId: "TXN123456792",
-      customer: {
-        name: "David Rodriguez",
-        email: "david.rodriguez@email.com",
-        avatar: "/placeholder.svg?height=40&width=40",
-      },
-      booking: {
-        id: "BK004",
-        tour: "Iceland Northern Lights",
-      },
-      amount: 2398,
-      method: "Credit Card",
-      status: "Refunded",
-      date: "2024-03-17",
-      processingFee: 71.94,
-      netAmount: 2326.06,
-      currency: "USD",
-      gateway: "Stripe",
-    },
-    {
-      id: "PAY005",
-      transactionId: "TXN123456793",
-      customer: {
-        name: "Lisa Thompson",
-        email: "lisa.thompson@email.com",
-        avatar: "/placeholder.svg?height=40&width=40",
-      },
-      booking: {
-        id: "BK005",
-        tour: "Tokyo Food & Culture",
-      },
-      amount: 1599,
-      method: "Credit Card",
-      status: "Completed",
-      date: "2024-03-16",
-      processingFee: 47.97,
-      netAmount: 1551.03,
-      currency: "USD",
-      gateway: "Stripe",
-    },
-  ]
+  // Fetch payments data
+  const fetchPayments = async () => {
+    setLoading(true)
+    try {
+      // Build query parameters
+      const params = new URLSearchParams()
+      if (searchTerm) params.append("search", searchTerm)
+      if (statusFilter !== "all") params.append("status", statusFilter.toLowerCase())
+      if (methodFilter !== "all") params.append("method", methodFilter.toLowerCase())
+      params.append("page", page.toString())
+      params.append("limit", limit.toString())
+
+      const response = await fetch(`/api/payments?${params.toString()}`)
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch payments")
+      }
+
+      const data = await response.json()
+      setPayments(data.payments)
+      setStats(data.stats)
+      setTotalPages(data.pagination.totalPages)
+    } catch (error) {
+      console.error("Error fetching payments:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load payments data. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchPayments()
+  }, [page, limit])
+
+  // Handle search and filter changes
+  const handleSearch = () => {
+    setPage(1) // Reset to first page when searching
+    fetchPayments()
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Completed":
+      case "COMPLETED":
         return "bg-green-100 text-green-800 border-green-200"
-      case "Pending":
+      case "PENDING":
         return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "Failed":
+      case "FAILED":
         return "bg-red-100 text-red-800 border-red-200"
-      case "Refunded":
+      case "REFUND":
         return "bg-blue-100 text-blue-800 border-blue-200"
       default:
         return "bg-gray-100 text-gray-800 border-gray-200"
@@ -139,34 +118,34 @@ export default function PaymentsPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "Completed":
+      case "COMPLETED":
         return <CheckCircle className="h-4 w-4 text-green-600" />
-      case "Pending":
+      case "PENDING":
         return <Clock className="h-4 w-4 text-yellow-600" />
-      case "Failed":
+      case "FAILED":
         return <XCircle className="h-4 w-4 text-red-600" />
-      case "Refunded":
+      case "REFUNDED":
         return <RefreshCw className="h-4 w-4 text-blue-600" />
       default:
         return <AlertCircle className="h-4 w-4 text-gray-600" />
     }
   }
 
-  const filteredPayments = payments.filter((payment) => {
-    const matchesSearch =
-      payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.booking.tour.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.transactionId.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || payment.status.toLowerCase() === statusFilter
-    const matchesMethod = methodFilter === "all" || payment.method.toLowerCase().includes(methodFilter.toLowerCase())
+  // Handle export
+  const handleExport = () => {
+    toast({
+      title: "Export Started",
+      description: "Your payment data is being exported to CSV.",
+    })
+    // Implement actual export functionality here
+  }
 
-    return matchesSearch && matchesStatus && matchesMethod
-  })
-
-  const totalRevenue = payments.filter((p) => p.status === "Completed").reduce((sum, p) => sum + p.amount, 0)
-  const totalFees = payments.filter((p) => p.status === "Completed").reduce((sum, p) => sum + p.processingFee, 0)
-  const pendingAmount = payments.filter((p) => p.status === "Pending").reduce((sum, p) => sum + p.amount, 0)
+  // View payment details
+  const viewPaymentDetails = (paymentId: string) => {
+    // Implement view payment details functionality
+    // Could navigate to a details page or open a modal
+    location.href = `/admin/payments/${paymentId}`
+  }
 
   return (
     <AdminLayout>
@@ -178,7 +157,7 @@ export default function PaymentsPage() {
             <p className="text-gray-600">Manage and track all payment transactions</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -192,7 +171,9 @@ export default function PaymentsPage() {
               <CardTitle className="text-sm font-medium text-gray-600">Total Revenue</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">${totalRevenue.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-green-600">
+                ${loading ? "..." : stats.totalRevenue.toLocaleString()}
+              </div>
               <p className="text-xs text-gray-500 mt-1">Completed payments</p>
             </CardContent>
           </Card>
@@ -201,7 +182,7 @@ export default function PaymentsPage() {
               <CardTitle className="text-sm font-medium text-gray-600">Processing Fees</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">${totalFees.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-orange-600">${loading ? "..." : stats?.totalFees?.toFixed(2)}</div>
               <p className="text-xs text-gray-500 mt-1">Total fees paid</p>
             </CardContent>
           </Card>
@@ -210,7 +191,9 @@ export default function PaymentsPage() {
               <CardTitle className="text-sm font-medium text-gray-600">Pending Amount</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">${pendingAmount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-yellow-600">
+                ${loading ? "..." : stats.pendingAmount.toLocaleString()}
+              </div>
               <p className="text-xs text-gray-500 mt-1">Awaiting processing</p>
             </CardContent>
           </Card>
@@ -219,7 +202,7 @@ export default function PaymentsPage() {
               <CardTitle className="text-sm font-medium text-gray-600">Total Transactions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{payments.length}</div>
+              <div className="text-2xl font-bold text-blue-600">{loading ? "..." : stats.totalTransactions}</div>
               <p className="text-xs text-gray-500 mt-1">All time</p>
             </CardContent>
           </Card>
@@ -239,12 +222,17 @@ export default function PaymentsPage() {
                   placeholder="Search payments, customers, or tours..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                   className="pl-10"
                 />
               </div>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value)
+                  setPage(1)
+                  setTimeout(() => fetchPayments(), 0)
+                }}
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="all">All Status</option>
@@ -255,7 +243,11 @@ export default function PaymentsPage() {
               </select>
               <select
                 value={methodFilter}
-                onChange={(e) => setMethodFilter(e.target.value)}
+                onChange={(e) => {
+                  setMethodFilter(e.target.value)
+                  setPage(1)
+                  setTimeout(() => fetchPayments(), 0)
+                }}
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="all">All Methods</option>
@@ -263,90 +255,120 @@ export default function PaymentsPage() {
                 <option value="paypal">PayPal</option>
                 <option value="bank">Bank Transfer</option>
               </select>
+              <Button onClick={handleSearch}>Search</Button>
             </div>
 
             {/* Payments Table */}
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Payment ID</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Tour</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Method</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPayments.map((payment) => (
-                    <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-4 px-4">
-                        <div>
-                          <div className="font-medium text-gray-900">{payment.id}</div>
-                          <div className="text-sm text-gray-500">{payment.transactionId}</div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={payment.customer.avatar || "/placeholder.svg"} />
-                            <AvatarFallback>
-                              {payment.customer.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium text-gray-900">{payment.customer.name}</div>
-                            <div className="text-sm text-gray-500">{payment.customer.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div>
-                          <div className="font-medium text-gray-900">{payment.booking.tour}</div>
-                          <div className="text-sm text-gray-500">Booking: {payment.booking.id}</div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div>
-                          <div className="font-medium text-gray-900">${payment.amount.toLocaleString()}</div>
-                          {payment.status === "Completed" && (
-                            <div className="text-sm text-gray-500">Fee: ${payment.processingFee}</div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div>
-                          <div className="font-medium text-gray-900">{payment.method}</div>
-                          <div className="text-sm text-gray-500">{payment.gateway}</div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <Badge className={`${getStatusColor(payment.status)} flex items-center gap-1 w-fit`}>
-                          {getStatusIcon(payment.status)}
-                          {payment.status}
-                        </Badge>
-                      </td>
-                      <td className="py-4 px-4 text-gray-600">{payment.date}</td>
-                      <td className="py-4 px-4">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </td>
+              {loading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                  <span className="ml-2 text-gray-600">Loading payments...</span>
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Payment ID</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Tour</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Method</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {payments.map((payment) => (
+                      <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4 px-4">
+                          <div>
+                            <div className="font-medium text-gray-900">{payment.id}</div>
+                            <div className="text-sm text-gray-500">{payment.transactionId}</div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="font-medium text-gray-900">{payment.customer.name}</div>
+                          <div className="text-sm text-gray-500">{payment.customer.email}</div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div>
+                            <div className="font-medium text-gray-900">{payment.booking.tour}</div>
+                            <div className="text-sm text-gray-500 truncate w-48">BID: {payment.booking.id}</div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div>
+                            <div className="font-medium text-gray-900">${payment.amount.toLocaleString()}</div>
+                            {payment.status === "COMPLETED" && (
+                              <div className="text-sm text-gray-500">Fee: ${payment.processingFee}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div>
+                            <div className="font-medium text-gray-900">{payment.method}</div>
+                            <div className="text-sm text-gray-500">{payment.gateway}</div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <Badge className={`${getStatusColor(payment.status)} flex items-center gap-1 w-fit`}>
+                            {getStatusIcon(payment.status)}
+                            {payment.status}
+                          </Badge>
+                        </td>
+                        <td className="py-4 px-4 text-gray-600">{payment.date}</td>
+                        <td className="py-4 px-4">
+                          <Button variant="ghost" size="sm" onClick={() => viewPaymentDetails(payment.id)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {!loading && payments.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No payments found matching your criteria.</p>
+                </div>
+              )}
             </div>
 
-            {filteredPayments.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No payments found matching your criteria.</p>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-6">
+                <div className="text-sm text-gray-500">
+                  Page {page} of {totalPages}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (page > 1) {
+                        setPage(page - 1)
+                      }
+                    }}
+                    disabled={page === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (page < totalPages) {
+                        setPage(page + 1)
+                      }
+                    }}
+                    disabled={page === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
